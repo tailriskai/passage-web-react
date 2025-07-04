@@ -22,7 +22,7 @@ function App() {
     <PassageProvider
       config={{
         // Optional configuration
-        baseUrl: "https://passage-infra-web.vercel.app",
+        baseUrl: "https://gravy-connect-infra-web.vercel.app/",
         socketUrl: "https://prod-gravy-connect-api.onrender.com",
         debug: true, // Enable debug logs
       }}
