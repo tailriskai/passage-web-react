@@ -1,0 +1,45 @@
+# Development files
+.github/
+.idea/
+.history/
+.vscode/
+
+# Source files (we publish compiled dist)
+src/
+tsconfig.json
+rollup.config.js
+
+# Example app
+example/
+
+# Config files
+.prettierrc.js
+.gitignore
+.npmignore
+
+# Documentation
+RELEASING.md
+CHANGELOG.md
+
+# Build artifacts
+*.tgz
+
+# Lock files not needed in package
+pnpm-lock.yaml
+yarn.lock
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.log
+tmp/
+temp/
+
+# Git
+.git/
