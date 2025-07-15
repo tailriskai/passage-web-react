@@ -10,7 +10,13 @@ import LogDisplay from "./LogDisplay";
 
 const BasicExample: React.FC = () => {
   const passage = usePassage();
-  const [publishableKey, setPublishableKey] = useState("pk_example_123456789");
+  const [publishableKey, setPublishableKey] = useState(
+    "pk-live-2dfb6cbf-be07-4f9b-877e-f8eaf19b2913"
+  );
+  const [integrationId, setIntegrationId] = useState("audible");
+  const [selectedIntegration, setSelectedIntegration] =
+    useState<string>("audible");
+  const [products, setProducts] = useState<string[]>(["history"]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [logs, setLogs] = useState<
     Array<{
@@ -21,14 +27,18 @@ const BasicExample: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(false);
   const [prompt, setPrompt] = useState<PassagePrompt>({
-    identifier: "",
-    prompt: "",
-    integrationid: "",
-    forceRefresh: false,
+    name: "",
+    value: "",
   });
   const [promptResults, setPromptResults] = useState<PassagePromptResponse[]>(
     []
   );
+
+  const integrationOptions = [
+    { value: "kindle", label: "Kindle" },
+    { value: "audible", label: "Audible" },
+    { value: "youtube", label: "YouTube" },
+  ];
 
   const addLog = (
     message: string,
@@ -44,10 +54,7 @@ const BasicExample: React.FC = () => {
     ]);
   };
 
-  const updatePrompt = (
-    field: keyof PassagePrompt,
-    value: string | boolean
-  ) => {
+  const updatePrompt = (field: keyof PassagePrompt, value: string) => {
     setPrompt((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -56,14 +63,23 @@ const BasicExample: React.FC = () => {
     setPromptResults([]);
     addLog("Initializing Passage...");
 
+    // Validate integrationId is selected
+    if (!integrationId) {
+      addLog("❌ Please select an integration type first", "error");
+      setLoading(false);
+      return;
+    }
+
     const promptsToSend: PassagePrompt[] = [];
-    if (prompt.identifier && prompt.prompt) {
+    if (prompt.name && prompt.value) {
       promptsToSend.push(prompt);
     }
 
     try {
       await passage.initialize({
         publishableKey,
+        integrationId: integrationId || undefined,
+        products,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
@@ -171,6 +187,55 @@ const BasicExample: React.FC = () => {
         />
       </div>
 
+      <div className="input-group">
+        <label htmlFor="integration-select">Integration ID Type:</label>
+        <select
+          id="integration-select"
+          value={selectedIntegration}
+          onChange={(e) => {
+            setSelectedIntegration(e.target.value);
+            setIntegrationId(e.target.value);
+          }}
+          disabled={isInitialized}
+          style={{
+            padding: "0.5rem",
+            border: "1px solid #e2e8f0",
+            borderRadius: "4px",
+            background: "white",
+            width: "100%",
+          }}
+        >
+          <option value="">Select an integrationid type</option>
+          {integrationOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="input-group">
+        <label htmlFor="products">Products (comma-separated):</label>
+        <input
+          id="products"
+          type="text"
+          value={products.join(", ")}
+          onChange={(e) =>
+            setProducts(
+              e.target.value
+                .split(",")
+                .map((p) => p.trim())
+                .filter((p) => p.length > 0)
+            )
+          }
+          placeholder="history, transactions, profile"
+          disabled={true}
+        />
+        <small style={{ color: "#666", fontSize: "0.875rem" }}>
+          Default: history
+        </small>
+      </div>
+
       <div style={{ marginBottom: "1rem" }}>
         <label
           style={{ fontWeight: 600, marginBottom: "0.5rem", display: "block" }}
@@ -196,9 +261,9 @@ const BasicExample: React.FC = () => {
           >
             <input
               type="text"
-              placeholder="Identifier (e.g., user_email)"
-              value={prompt.identifier}
-              onChange={(e) => updatePrompt("identifier", e.target.value)}
+              placeholder="Prompt name (e.g., user_email)"
+              value={prompt.name}
+              onChange={(e) => updatePrompt("name", e.target.value)}
               disabled={isInitialized}
               style={{
                 padding: "0.5rem",
@@ -208,9 +273,9 @@ const BasicExample: React.FC = () => {
             />
             <input
               type="text"
-              placeholder="Integration ID"
-              value={prompt.integrationid}
-              onChange={(e) => updatePrompt("integrationid", e.target.value)}
+              placeholder="Prompt value (e.g., What is your email?)"
+              value={prompt.value}
+              onChange={(e) => updatePrompt("value", e.target.value)}
               disabled={isInitialized}
               style={{
                 padding: "0.5rem",
@@ -219,36 +284,6 @@ const BasicExample: React.FC = () => {
               }}
             />
           </div>
-          <input
-            type="text"
-            placeholder="Prompt text (e.g., What is your email address?)"
-            value={prompt.prompt}
-            onChange={(e) => updatePrompt("prompt", e.target.value)}
-            disabled={isInitialized}
-            style={{
-              width: "100%",
-              padding: "0.5rem",
-              border: "1px solid #e2e8f0",
-              borderRadius: "4px",
-              marginBottom: "0.5rem",
-            }}
-          />
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              fontSize: "0.875rem",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={prompt.forceRefresh}
-              onChange={(e) => updatePrompt("forceRefresh", e.target.checked)}
-              disabled={isInitialized}
-              style={{ marginRight: "0.5rem" }}
-            />
-            Force Refresh
-          </label>
         </div>
       </div>
 

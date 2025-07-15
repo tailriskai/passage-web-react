@@ -23,3 +23,5 @@ export const CONFIG_DEFAULTS = {
   socketUrl: DEFAULT_SOCKET_URL,
   socketNamespace: DEFAULT_SOCKET_NAMESPACE,
 } as const;
+
+export const USER_AGENT = "passage-web-react";

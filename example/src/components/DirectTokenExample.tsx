@@ -11,6 +11,7 @@ const DirectTokenExample: React.FC = () => {
   const [intentToken, setIntentToken] = useState(
     "intent_token_abc123xyz789_example"
   );
+
   const [logs, setLogs] = useState<
     Array<{
       timestamp: string;
@@ -39,7 +40,9 @@ const DirectTokenExample: React.FC = () => {
       return;
     }
 
-    addLog("🚀 Opening Passage directly with intent token (no initialize)...");
+    addLog(
+      `🚀 Opening Passage with iframe ConnectFlow (direct intent token)...`
+    );
     addLog(`Using token: ${intentToken}`);
 
     try {
@@ -79,7 +82,7 @@ const DirectTokenExample: React.FC = () => {
       });
 
       addLog(
-        "🎉 Passage opened successfully with direct intent token!",
+        `🎉 Passage opened successfully with iframe ConnectFlow!`,
         "success"
       );
     } catch (error) {
@@ -102,7 +105,8 @@ const DirectTokenExample: React.FC = () => {
       <h3>🔑 Direct Intent Token</h3>
       <p>
         Skip initialization and open Passage directly with an existing intent
-        token from an external source.
+        token from an external source. Choose between QR code or iframe
+        ConnectFlow.
       </p>
 
       <div className="input-group">
@@ -114,6 +118,13 @@ const DirectTokenExample: React.FC = () => {
           onChange={(e) => setIntentToken(e.target.value)}
           placeholder="Enter an intent token"
         />
+      </div>
+
+      <div className="input-group">
+        <small style={{ color: "#666" }}>
+          🖼️ Now uses iframe ConnectFlow interface by default for enhanced user
+          experience
+        </small>
       </div>
 
       <div style={{ marginBottom: "1rem" }}>

@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { QRCode } from "./QRCode";
-import { StatusDisplay } from "./StatusDisplay";
 import { logger } from "../logger";
 import type { ConnectionStatus, PassageModalStyles } from "../types";
+import { USER_AGENT } from "../config";
 
 interface PassageModalProps {
   isOpen: boolean;
@@ -15,69 +14,45 @@ interface PassageModalProps {
   presentationStyle?: "modal" | "embed";
 }
 
+// Define default styles to avoid TypeScript errors
+const defaultCustomStyles: PassageModalStyles = {
+  content: {},
+  header: {},
+  body: {},
+  footer: {},
+  container: {},
+};
+
 export const PassageModal: React.FC<PassageModalProps> = ({
   isOpen,
   intentToken,
   status,
   baseUrl,
   onClose,
-  customStyles = {},
+  customStyles = defaultCustomStyles,
   presentationStyle = "modal",
 }) => {
-  const [qrValue, setQrValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [displayedStatus, setDisplayedStatus] =
-    useState<ConnectionStatus | null>(status);
-  const [statusChangeTimestamp, setStatusChangeTimestamp] = useState<number>(
-    Date.now()
-  );
+  const [iframeHeight, setIframeHeight] = useState<number>(600); // Default height
+  const [iframeWidth, setIframeWidth] = useState<number>(600); // Default width
+
+  // Merge custom styles with defaults
+  const mergedStyles = {
+    content: { ...defaultCustomStyles.content, ...customStyles.content },
+    header: { ...defaultCustomStyles.header, ...customStyles.header },
+    body: { ...defaultCustomStyles.body, ...customStyles.body },
+    footer: { ...defaultCustomStyles.footer, ...customStyles.footer },
+    container: { ...defaultCustomStyles.container, ...customStyles.container },
+  };
 
   useEffect(() => {
     if (intentToken) {
-      setIsLoading(true);
-      logger.debug(
-        "[PassageModal] Generating QR code for intentToken:",
-        intentToken
-      );
-      // Build QR code value - this should match what the mobile app expects
-      const qrData = {
-        intentToken,
-        baseUrl,
-        timestamp: new Date().toISOString(),
-      };
-      const qrString = JSON.stringify(qrData);
-      logger.debug("[PassageModal] QR code data:", qrData);
-      logger.debug("[PassageModal] QR code string length:", qrString.length);
-      setQrValue(qrString);
       setIsLoading(false);
+      logger.debug("[PassageModal] Intent token available:", intentToken);
     } else {
       setIsLoading(true);
-      setQrValue("");
     }
-  }, [intentToken, baseUrl]);
-
-  // Handle delayed status transitions
-  useEffect(() => {
-    if (status !== displayedStatus) {
-      const timeSinceLastChange = Date.now() - statusChangeTimestamp;
-      const minDisplayTime = 1000; // 1 second minimum display time
-
-      if (timeSinceLastChange >= minDisplayTime) {
-        // Immediate transition if enough time has passed
-        setDisplayedStatus(status);
-        setStatusChangeTimestamp(Date.now());
-      } else {
-        // Delay the transition
-        const delay = minDisplayTime - timeSinceLastChange;
-        const timeout = setTimeout(() => {
-          setDisplayedStatus(status);
-          setStatusChangeTimestamp(Date.now());
-        }, delay);
-
-        return () => clearTimeout(timeout);
-      }
-    }
-  }, [status, displayedStatus, statusChangeTimestamp]);
+  }, [intentToken]);
 
   useEffect(() => {
     logger.debug(
@@ -85,46 +60,71 @@ export const PassageModal: React.FC<PassageModalProps> = ({
       isOpen,
       "status:",
       status,
-      "displayedStatus:",
-      displayedStatus,
       "intentToken:",
       intentToken
     );
-  }, [isOpen, status, displayedStatus, intentToken]);
+  }, [isOpen, status, intentToken]);
+
+  // Listen for dimension updates and close events from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Only accept messages from the iframe's origin
+      if (event.origin !== new URL(baseUrl).origin) {
+        return;
+      }
+
+      try {
+        const data =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+
+        // Handle close message from iframe
+        if (data.type === "PASSAGE_MODAL_CLOSE") {
+          logger.debug("[PassageModal] Received close message from iframe");
+          onClose();
+          return;
+        }
+
+        // Handle both old height-only and new dimensions messages
+        if (data.type === "IFRAME_DIMENSIONS_UPDATE") {
+          if (typeof data.height === "number") {
+            logger.debug("[PassageModal] Received height update:", data.height);
+            setIframeHeight(Math.max(data.height, 400)); // Minimum height of 400px
+          }
+          if (typeof data.width === "number") {
+            logger.debug("[PassageModal] Received width update:", data.width);
+            setIframeWidth(Math.max(data.width, 300)); // Minimum width of 300px
+          }
+        } else if (
+          data.type === "IFRAME_HEIGHT_UPDATE" &&
+          typeof data.height === "number"
+        ) {
+          // Backward compatibility for old height-only messages
+          logger.debug("[PassageModal] Received height update:", data.height);
+          setIframeHeight(Math.max(data.height, 400)); // Minimum height of 400px
+        }
+      } catch (error) {
+        // Ignore non-JSON messages
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener("message", handleMessage);
+    }
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [isOpen, baseUrl, onClose]);
 
   if (!isOpen) {
     logger.debug("[PassageModal] Not rendering - isOpen:", isOpen);
     return null;
   }
 
-  logger.debug(
-    "[PassageModal] Status:",
-    status,
-    "DisplayedStatus:",
-    displayedStatus,
-    "intentToken:",
-    intentToken
-  );
+  logger.debug("[PassageModal] Status:", status, "intentToken:", intentToken);
 
   // Show loading state when no intent token yet
   const isInitializing = !intentToken;
-  const shouldShowQR =
-    intentToken &&
-    (displayedStatus === "pending" || displayedStatus === "connecting");
-  const isComplete = displayedStatus === "data_available";
-  const hasError =
-    displayedStatus === "error" || displayedStatus === "rejected";
-
-  logger.debug(
-    "[PassageModal] Render state - isInitializing:",
-    isInitializing,
-    "shouldShowQR:",
-    shouldShowQR,
-    "isComplete:",
-    isComplete,
-    "hasError:",
-    hasError
-  );
 
   // Animation variants
   const containerVariants = {
@@ -151,436 +151,82 @@ export const PassageModal: React.FC<PassageModalProps> = ({
     },
   };
 
-  const contentVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.3,
-        ease: "easeOut",
-      },
-    },
-    exit: {
-      opacity: 0,
-      y: -10,
-      transition: {
-        duration: 0.2,
-        ease: "easeIn",
-      },
-    },
-  };
-
+  // ConnectFlow iframe content - now the only content option
   const content = (
     <motion.div
-      className="passage-modal-content"
+      key="passage-connect-flow-content"
+      className="passage-connect-flow"
       layout
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
       style={{
-        backgroundColor: "#FFFFFF",
+        width: `${iframeWidth}px`, // Dynamic width based on iframe content
+        height: `${iframeHeight}px`, // Dynamic height based on iframe content
+        maxWidth: "min(90vw, 600px)", // Responsive max width
+        maxHeight: "min(90vh, 800px)", // Responsive max height
         borderRadius: presentationStyle === "modal" ? "12px" : "0",
-        padding: "32px",
-        width: "100%",
-        maxWidth: "480px",
-        margin: "0 auto",
-        boxShadow:
-          presentationStyle === "modal"
-            ? "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
-            : "none",
-        ...customStyles.content,
+        overflow: "hidden",
+        backgroundColor: "#FFFFFF",
+        transition: "width 0.3s ease-out, height 0.3s ease-out", // Smooth dimension transitions
+        ...mergedStyles.content,
       }}
     >
-      {/* Header */}
-      <motion.div
-        className="passage-modal-header"
-        variants={contentVariants}
-        layout
-        style={{
-          marginBottom: "32px",
-          textAlign: "center",
-          ...customStyles.header,
-        }}
-      >
-        <h2
+      {isInitializing ? (
+        <div
           style={{
-            margin: "0 0 8px 0",
-            fontSize: "24px",
-            fontWeight: "700",
-            color: "#111827",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "#F9FAFB",
           }}
         >
-          {isComplete
-            ? "Connection Complete"
-            : isInitializing
-              ? "Initializing Connection"
-              : "Connect Your Account"}
-        </h2>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "14px",
-            color: "#6B7280",
-          }}
-        >
-          {isInitializing
-            ? "Setting up secure connection..."
-            : shouldShowQR
-              ? "Scan this QR code with Passage Authenticator"
-              : "Follow the progress below"}
-        </p>
-      </motion.div>
-
-      {/* Body */}
-      <motion.div
-        className="passage-modal-body"
-        variants={contentVariants}
-        layout
-        style={{
-          marginBottom: "24px",
-          ...customStyles.body,
-        }}
-      >
-        {/* Initial Loading State */}
-        <AnimatePresence mode="wait">
-          {isInitializing && (
-            <motion.div
-              key="initializing"
-              variants={contentVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              layout
-              style={{
-                marginBottom: "32px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  padding: "16px",
-                  backgroundColor: "#F9FAFB",
-                  borderRadius: "8px",
-                  height: "272px", // Match QR code container height
-                }}
-              >
-                <div
-                  style={{
-                    textAlign: "center",
-                  }}
-                >
-                  {/* Loading spinner */}
-                  <div
-                    className="passage-loading-spinner"
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      margin: "0 auto 16px",
-                      border: "3px solid #E5E7EB",
-                      borderTopColor: "#3B82F6",
-                      borderRadius: "50%",
-                      animation: "passage-spin 1s linear infinite",
-                    }}
-                  />
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "14px",
-                      color: "#6B7280",
-                    }}
-                  >
-                    Establishing secure connection...
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* QR Code */}
-        <AnimatePresence mode="wait">
-          {shouldShowQR && (
-            <motion.div
-              key="qr-code"
-              variants={contentVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              layout
-              style={{
-                marginBottom: "32px",
-              }}
-            >
-              {isLoading ? (
-                <>
-                  {/* Loading state for QR code */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      padding: "16px",
-                      backgroundColor: "#F9FAFB",
-                      borderRadius: "8px",
-                      height: "272px", // Match QR code container height (240px + 32px padding)
-                    }}
-                  >
-                    <div
-                      style={{
-                        textAlign: "center",
-                      }}
-                    >
-                      {/* Loading spinner */}
-                      <div
-                        className="passage-loading-spinner"
-                        style={{
-                          width: "48px",
-                          height: "48px",
-                          margin: "0 auto 16px",
-                          border: "3px solid #E5E7EB",
-                          borderTopColor: "#3B82F6",
-                          borderRadius: "50%",
-                          animation: "passage-spin 1s linear infinite",
-                        }}
-                      />
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: "14px",
-                          color: "#6B7280",
-                        }}
-                      >
-                        Generating secure connection...
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Loading state for link */}
-                  <div
-                    style={{
-                      marginTop: "16px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <p
-                      style={{
-                        margin: "0 0 8px 0",
-                        fontSize: "12px",
-                        color: "#6B7280",
-                      }}
-                    >
-                      Or open this link on your mobile device:
-                    </p>
-                    <div
-                      style={{
-                        display: "inline-block",
-                        padding: "8px 12px",
-                        backgroundColor: "#EFF6FF",
-                        borderRadius: "6px",
-                        border: "1px solid #DBEAFE",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: "200px",
-                          height: "20px",
-                          backgroundColor: "#E5E7EB",
-                          borderRadius: "4px",
-                          animation: "passage-pulse 1.5s ease-in-out infinite",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      padding: "16px",
-                      backgroundColor: "#F9FAFB",
-                      borderRadius: "8px",
-                    }}
-                  >
-                    <QRCode value={qrValue} size={240} />
-                  </div>
-
-                  {/* Clickable link under QR code */}
-                  <div
-                    style={{
-                      marginTop: "16px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <p
-                      style={{
-                        margin: "0 0 8px 0",
-                        fontSize: "12px",
-                        color: "#6B7280",
-                      }}
-                    >
-                      Or open this link on your mobile device:
-                    </p>
-                    <a
-                      href={`passage://connect?intentToken=${intentToken}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        fontSize: "14px",
-                        color: "#3B82F6",
-                        textDecoration: "none",
-                        wordBreak: "break-all",
-                        display: "inline-block",
-                        padding: "8px 12px",
-                        backgroundColor: "#EFF6FF",
-                        borderRadius: "6px",
-                        border: "1px solid #DBEAFE",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#DBEAFE";
-                        e.currentTarget.style.borderColor = "#BFDBFE";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#EFF6FF";
-                        e.currentTarget.style.borderColor = "#DBEAFE";
-                      }}
-                    >
-                      {`passage://connect?intentToken=${intentToken}`}
-                    </a>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Status Display */}
-        <AnimatePresence mode="wait">
-          {(displayedStatus || isInitializing) && (
-            <motion.div
-              key={`status-${isInitializing ? "connecting" : displayedStatus}`}
-              variants={contentVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              layout
-            >
-              <StatusDisplay
-                status={
-                  isInitializing
-                    ? "connecting"
-                    : displayedStatus || "connecting"
-                }
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Success Message */}
-        <AnimatePresence>
-          {isComplete && (
-            <motion.div
-              key="success"
-              variants={contentVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              layout
-              style={{
-                marginTop: "24px",
-                padding: "16px",
-                backgroundColor: "#F0FDF4",
-                border: "1px solid #86EFAC",
-                borderRadius: "8px",
-                textAlign: "center",
-              }}
-            >
-              <p style={{ margin: 0, color: "#15803D" }}>
-                Your accounts have been successfully connected. You can now
-                close this window.
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Error Message */}
-        <AnimatePresence>
-          {hasError && (
-            <motion.div
-              key="error"
-              variants={contentVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              layout
-              style={{
-                marginTop: "24px",
-                padding: "16px",
-                backgroundColor: "#FEF2F2",
-                border: "1px solid #FCA5A5",
-                borderRadius: "8px",
-                textAlign: "center",
-              }}
-            >
-              <p style={{ margin: 0, color: "#991B1B" }}>
-                {displayedStatus === "rejected"
-                  ? "Connection was rejected. Please try again."
-                  : "Unable to complete the connection. Please try again or contact support if the issue persists."}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Footer */}
-      <motion.div
-        className="passage-modal-footer"
-        variants={contentVariants}
-        layout
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          paddingTop: "16px",
-          borderTop: "1px solid #E5E7EB",
-          ...customStyles.footer,
-        }}
-      >
-        {presentationStyle === "modal" && (
-          <button
-            onClick={() => {
-              logger.debug("[PassageModal] Close button clicked");
-              onClose();
-            }}
+          <div
             style={{
-              padding: "10px 24px",
-              fontSize: "14px",
-              fontWeight: "500",
-              color: "#374151",
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #D1D5DB",
-              borderRadius: "6px",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#F9FAFB";
-              e.currentTarget.style.borderColor = "#9CA3AF";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#FFFFFF";
-              e.currentTarget.style.borderColor = "#D1D5DB";
+              textAlign: "center",
             }}
           >
-            {isComplete || hasError ? "Close" : "Cancel"}
-          </button>
-        )}
-      </motion.div>
+            {/* Loading spinner */}
+            <div
+              className="passage-loading-spinner"
+              style={{
+                width: "48px",
+                height: "48px",
+                margin: "0 auto 16px",
+                border: "3px solid #E5E7EB",
+                borderTopColor: "#3B82F6",
+                borderRadius: "50%",
+                animation: "passage-spin 1s linear infinite",
+              }}
+            />
+            <p
+              style={{
+                margin: 0,
+                fontSize: "14px",
+                color: "#6B7280",
+              }}
+            >
+              Establishing secure connection...
+            </p>
+          </div>
+        </div>
+      ) : (
+        <iframe
+          src={`${baseUrl}/connect?intentToken=${intentToken || ""}&userAgent=${USER_AGENT}`}
+          style={{
+            width: "100%",
+            height: "100%",
+            border: "none",
+            display: "block",
+          }}
+          title="Passage Connect Flow"
+          allow="clipboard-read; clipboard-write"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+        />
+      )}
     </motion.div>
   );
 
@@ -595,6 +241,7 @@ export const PassageModal: React.FC<PassageModalProps> = ({
     <AnimatePresence>
       {/* Backdrop */}
       <motion.div
+        key="passage-modal-backdrop"
         className="passage-modal-backdrop"
         data-passage-modal="true"
         initial={{ opacity: 0 }}
@@ -611,6 +258,8 @@ export const PassageModal: React.FC<PassageModalProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          padding: "20px",
+          boxSizing: "border-box",
           zIndex: 9999,
         }}
         onClick={() => {
@@ -620,6 +269,7 @@ export const PassageModal: React.FC<PassageModalProps> = ({
       >
         {/* Modal Container */}
         <motion.div
+          key="passage-modal-container"
           className="passage-modal-container"
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -632,34 +282,57 @@ export const PassageModal: React.FC<PassageModalProps> = ({
           layout
           style={{
             position: "relative",
-            width: "90%",
-            maxWidth: "480px",
             zIndex: 10000,
-            ...customStyles.container,
+            ...mergedStyles.container,
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           {content}
+
+          {/* Close button overlay for modal mode */}
+          {presentationStyle === "modal" && (
+            <button
+              onClick={() => {
+                logger.debug("[PassageModal] Close button clicked");
+                onClose();
+              }}
+              style={{
+                position: "absolute",
+                top: "16px",
+                right: "16px",
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                border: "none",
+                color: "white",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "18px",
+                fontWeight: "bold",
+                zIndex: 10001,
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+              }}
+            >
+              ×
+            </button>
+          )}
         </motion.div>
       </motion.div>
 
-      {/* CSS Animations - Keep only what's still needed */}
+      {/* CSS Animations */}
       <style>{`
-        @keyframes passage-progress {
-          0% { width: 0%; }
-          50% { width: 70%; }
-          100% { width: 100%; }
-        }
-        
         @keyframes passage-spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
-        }
-        
-        @keyframes passage-pulse {
-          0% { opacity: 0.3; }
-          50% { opacity: 0.6; }
-          100% { opacity: 0.3; }
         }
         
         /* Ensure Passage modal is always on top */
@@ -669,6 +342,33 @@ export const PassageModal: React.FC<PassageModalProps> = ({
         
         .passage-modal-container {
           z-index: 100000 !important;
+        }
+        
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+          .passage-modal-backdrop {
+            padding: 10px !important;
+          }
+          
+          .passage-connect-flow {
+            max-width: 95vw !important;
+            max-height: 90vh !important;
+            width: 100% !important;
+            min-width: 320px !important;
+          }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 480px) {
+          .passage-modal-backdrop {
+            padding: 5px !important;
+          }
+          
+          .passage-connect-flow {
+            max-width: 98vw !important;
+            max-height: 95vh !important;
+            border-radius: 8px !important;
+          }
         }
       `}</style>
     </AnimatePresence>

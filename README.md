@@ -113,15 +113,31 @@ import ReactDOM from "react-dom/client";
 import { PassageProvider, usePassage } from "../dist";
 
 function App() {
-  const { open, isOpen, status } = usePassage();
+  const { initialize, open } = usePassage();
+
+  const handleInitialize = async () => {
+    await initialize({
+      publishableKey: "your-publishable-key",
+      integrationId: "your-integration-id",
+      products: ["history"], // Optional: defaults to ["history"]
+      onConnectionComplete: (data) => {
+        console.log("Connection successful!", data);
+      },
+      onError: (error) => {
+        console.error("Connection failed:", error);
+      },
+    });
+  };
+
+  const handleOpen = async () => {
+    await open();
+  };
 
   return (
     <div>
       <h1>Passage SDK Example</h1>
-      <button onClick={() => open("test-intent-token")} disabled={isOpen}>
-        Open Passage
-      </button>
-      {status && <p>Status: {status}</p>}
+      <button onClick={handleInitialize}>Initialize</button>
+      <button onClick={handleOpen}>Open Passage</button>
     </div>
   );
 }
@@ -198,4 +214,5 @@ This repository should be configured with GitHub Actions for automated releases 
 ## License
 
 MIT © Passage
+
 # passage-web-react

@@ -1,4 +1,5 @@
 import type { WebSocketManager } from "./websocket-manager";
+import type * as React from "react";
 
 export type ConnectionStatus =
   | "pending"
@@ -49,10 +50,8 @@ export interface PassageModalStyles {
 }
 
 export interface PassagePrompt {
-  identifier: string;
-  prompt: string;
-  integrationid: string;
-  forceRefresh: boolean;
+  name: string;
+  value: string;
 }
 
 export interface PassagePromptResponse {
@@ -66,6 +65,17 @@ export interface PassageInitializeOptions {
    * Publishable key for authentication
    */
   publishableKey: string;
+
+  /**
+   * Integration ID for the connection
+   */
+  integrationId?: string;
+
+  /**
+   * Products to request data for
+   * @default ["history"]
+   */
+  products?: string[];
 
   /**
    * Prompts to process after connection

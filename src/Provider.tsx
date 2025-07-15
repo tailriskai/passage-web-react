@@ -81,14 +81,17 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   const generateIntentToken = useCallback(
     async (
       publishableKey: string,
-      prompts: PassagePrompt[] = []
+      prompts: PassagePrompt[] = [],
+      integrationId?: string,
+      products: string[] = ["history"]
     ): Promise<string> => {
       try {
         const apiUrl = config.socketUrl || DEFAULT_API_BASE_URL;
 
         const payload = {
-          publishableKey,
+          integrationId,
           prompts,
+          products,
         };
 
         logger.debug(
@@ -97,11 +100,10 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             publishableKey,
             promptsCount: prompts.length,
             prompts: prompts.map((p) => ({
-              identifier: p.identifier,
-              prompt: p.prompt,
-              integrationid: p.integrationid,
-              forceRefresh: p.forceRefresh,
+              name: p.name,
+              value: p.value,
             })),
+            products,
           }
         );
 
@@ -141,13 +143,16 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         publishableKey: options.publishableKey,
         hasPrompts: !!options.prompts?.length,
         promptsCount: options.prompts?.length || 0,
+        products: options.products || ["history"],
       });
 
       try {
         // Generate intent token
         const token = await generateIntentToken(
           options.publishableKey,
-          options.prompts || []
+          options.prompts || [],
+          options.integrationId,
+          options.products || ["history"]
         );
         setIntentToken(token);
         logger.debug("[PassageProvider] Initialization complete");
@@ -175,6 +180,14 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     if (!intentToken) {
       logger.debug(
         "[PassageProvider] Skipping connection listener setup - no intentToken"
+      );
+      return;
+    }
+
+    // Only set up listener when modal is open
+    if (!isOpen) {
+      logger.debug(
+        "[PassageProvider] Skipping connection listener setup - modal not open"
       );
       return;
     }
@@ -281,11 +294,24 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           const prompt = data;
           logger.debug("[PassageProvider] Prompt event received:", prompt);
 
-          // Handle prompt status mappings
-          if (prompt.status === "completed") {
-            logger.debug("[PassageProvider] Prompt completed:", prompt);
-            onPromptCompleteRef.current?.(prompt);
-          }
+          // Handle prompt data - it might be an array or single object
+          const prompts = Array.isArray(prompt) ? prompt : [prompt];
+
+          prompts.forEach((singlePrompt: any) => {
+            // Handle prompt status mappings
+            if (singlePrompt.status === "completed") {
+              logger.debug("[PassageProvider] Prompt completed:", singlePrompt);
+
+              // Transform server response to match PassagePromptResponse interface
+              const promptResponse = {
+                key: singlePrompt.name || singlePrompt.key,
+                value: singlePrompt.result?.content || singlePrompt.value || "",
+                response: singlePrompt,
+              };
+
+              onPromptCompleteRef.current?.(promptResponse);
+            }
+          });
         }
 
         // Handle status events
@@ -389,7 +415,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       logger.debug("[PassageProvider] Cleaning up listeners");
       unsubscribeMessage();
     };
-  }, [intentToken]);
+  }, [intentToken, isOpen]);
 
   // Open method with new signature
   const open = useCallback(
@@ -494,9 +520,10 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         );
         options.onError?.(errorData);
 
-        // Clean up on error
-        logger.debug("[PassageProvider] Cleaning up after error");
-        setIntentToken(null);
+        // Clean up on error but preserve intent token for retry
+        logger.debug(
+          "[PassageProvider] Cleaning up after error (preserving intent token for retry)"
+        );
       }
     },
     [config, intentToken]
@@ -522,10 +549,10 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       wsManager.disconnect();
     }
 
-    // Reset all state
-    logger.debug("[PassageProvider] Resetting all state");
+    // Reset state but preserve intent token for reopening
+    logger.debug("[PassageProvider] Resetting state (preserving intent token)");
     setIsOpen(false);
-    setIntentToken(null);
+    // Keep intentToken so modal can be reopened without reinitializing
     setStatus(null);
     setConnectionData(null);
     setSessionData(null);
@@ -539,7 +566,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     onPromptCompleteRef.current = undefined;
     onExitRef.current = undefined;
 
-    logger.debug("[PassageProvider] Modal closed and state cleared");
+    logger.debug(
+      "[PassageProvider] Modal closed and state cleared (intent token preserved)"
+    );
   }, [status]);
 
   // Get data method

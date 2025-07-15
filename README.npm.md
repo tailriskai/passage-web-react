@@ -40,29 +40,26 @@ import React from "react";
 import { usePassage } from "@tailriskai/passage-web-react";
 
 function ConnectButton() {
-  const { open, isOpen, status } = usePassage();
+  const { initialize, open, isOpen, status } = usePassage();
 
   const handleConnect = async () => {
     try {
-      // Get intent token from your backend
-      const response = await fetch("/api/create-intent-token", {
-        method: "POST",
-      });
-      const { intentToken } = await response.json();
-
-      // Open Passage modal
-      await open(intentToken, {
-        onSuccess: (data) => {
+      // Initialize Passage with your publishable key and integration ID
+      await initialize({
+        publishableKey: "your-publishable-key",
+        integrationId: "your-integration-id",
+        products: ["history"], // Optional: defaults to ["history"]
+        onConnectionComplete: (data) => {
           console.log("Connection successful!", data);
           // Connection is complete, you can now fetch data from your backend
         },
         onError: (error) => {
           console.error("Connection failed:", error);
         },
-        onStatusChange: (status) => {
-          console.log("Status changed to:", status);
-        },
       });
+
+      // Open Passage modal
+      await open();
     } catch (error) {
       console.error("Failed to open Passage:", error);
     }
@@ -194,23 +191,20 @@ import React, { useState } from "react";
 import { PassageProvider, usePassage } from "@tailriskai/passage-web-react";
 
 function ConnectFlow() {
-  const { open, isOpen, status } = usePassage();
+  const { initialize, open, isOpen, status } = usePassage();
   const [connectionData, setConnectionData] = useState(null);
 
   const handleConnect = async () => {
     try {
-      // 1. Create intent token via your backend
-      const response = await fetch("/api/passage/create-intent", {
-        method: "POST",
-      });
-      const { intentToken } = await response.json();
-
-      // 2. Open Passage modal
-      await open(intentToken, {
-        onSuccess: async (data) => {
+      // 1. Initialize Passage with your keys
+      await initialize({
+        publishableKey: "your-publishable-key",
+        integrationId: "your-integration-id",
+        products: ["history", "transactions"], // Optional: specify which data products to collect
+        onConnectionComplete: async (data) => {
           console.log("Connection successful!", data);
 
-          // 3. Fetch enriched data from your backend
+          // 2. Fetch enriched data from your backend
           const dataResponse = await fetch(
             `/api/passage/connection/${data.connectionId}/history`
           );
@@ -221,10 +215,10 @@ function ConnectFlow() {
         onError: (error) => {
           alert("Connection failed: " + error.error);
         },
-        onStatusChange: (status) => {
-          console.log("Status:", status);
-        },
       });
+
+      // 3. Open Passage modal
+      await open();
     } catch (error) {
       console.error("Error:", error);
     }
