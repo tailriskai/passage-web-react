@@ -24,9 +24,6 @@
     "type": "git",
     "url": "https://github.com/tailriskai/passage-web-sdk.git"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "keywords": [
     "passage",
     "react",

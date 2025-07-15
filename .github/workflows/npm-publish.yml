@@ -112,6 +112,9 @@ jobs:
           pnpm pkg delete scripts.prepack
           pnpm pkg delete scripts.postpack
 
+          # Remove publishConfig to avoid publishing to GitHub Packages
+          pnpm pkg delete publishConfig
+
           # Copy the user README to be the main README
           cp README.npm.md README.md
 
