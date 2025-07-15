@@ -10,8 +10,6 @@ import type { PassageContextValue } from "./types";
  * - open: Open the Passage modal (requires initialization first)
  * - close: Close the Passage modal
  * - getData: Get stored session data and prompts
- * - connect: Connect to Passage in headless mode
- * - disconnect: Disconnect from Passage
  */
 export const usePassage = (): PassageContextValue => {
   const context = useContext(PassageContext);

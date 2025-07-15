@@ -1,0 +1,227 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: #333;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
+  color: white;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.examples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.example-card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.example-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.example-card h3 {
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+  color: #2d3748;
+}
+
+.example-card p {
+  color: #4a5568;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button.secondary {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.button.secondary:hover:not(:disabled) {
+  background: #cbd5e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.button.danger {
+  background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+}
+
+.button.danger:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.4);
+}
+
+.input-group {
+  margin-bottom: 1rem;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.input-group input,
+.input-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.status-display {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.status-display.success {
+  background: #f0fff4;
+  border-color: #9ae6b4;
+}
+
+.status-display.error {
+  background: #fed7d7;
+  border-color: #feb2b2;
+}
+
+.log-display {
+  background: #1a202c;
+  color: #e2e8f0;
+  padding: 1rem;
+  border-radius: 8px;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.875rem;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 1rem;
+}
+
+.log-entry {
+  margin-bottom: 0.25rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #2d3748;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-timestamp {
+  color: #a0aec0;
+  font-size: 0.75rem;
+}
+
+.embed-container {
+  border: 2px dashed #cbd5e0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  min-height: 400px;
+  background: #f9fafb;
+}
+
+.embed-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #718096;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .header h1 {
+    font-size: 2rem;
+  }
+
+  .examples-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .example-card {
+    padding: 1.5rem;
+  }
+}

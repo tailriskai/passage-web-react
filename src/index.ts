@@ -12,7 +12,6 @@ export type {
   PassageConfig,
   PassageInitializeOptions,
   PassageOpenOptions,
-  PassageConnectOptions,
   PassagePrompt,
   PassagePromptResponse,
   PassageDataResult,

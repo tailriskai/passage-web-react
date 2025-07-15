@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { logger } from "../logger";
 import type { ConnectionStatus } from "../types";
 
@@ -7,14 +8,16 @@ interface StatusDisplayProps {
   className?: string;
 }
 
-const statusConfig: Record<
-  ConnectionStatus,
-  {
-    text: string;
-    color: string;
-    icon: string;
-    description: string;
-  }
+const statusConfig: Partial<
+  Record<
+    ConnectionStatus,
+    {
+      text: string;
+      color: string;
+      icon: string;
+      description: string;
+    }
+  >
 > = {
   pending: {
     text: "Waiting for connection",
@@ -27,12 +30,6 @@ const statusConfig: Record<
     color: "#3B82F6",
     icon: "🔄",
     description: "Establishing secure connection with your device",
-  },
-  connected: {
-    text: "Connected",
-    color: "#10B981",
-    icon: "✓",
-    description: "Successfully connected to your device",
   },
   rejected: {
     text: "Connection rejected",
@@ -74,8 +71,15 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({
   }
 
   return (
-    <div className={`passage-status ${className}`}>
-      <div
+    <motion.div
+      className={`passage-status ${className}`}
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
+      <motion.div
+        layout
         style={{
           display: "flex",
           alignItems: "center",
@@ -83,8 +87,20 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({
           marginBottom: "8px",
         }}
       >
-        <span style={{ fontSize: "24px" }}>{config.icon}</span>
-        <span
+        <motion.span
+          key={`icon-${status}`}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          style={{ fontSize: "24px" }}
+        >
+          {config.icon}
+        </motion.span>
+        <motion.span
+          key={`text-${status}`}
+          initial={{ x: -10, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
           style={{
             fontSize: "18px",
             fontWeight: "600",
@@ -92,9 +108,13 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({
           }}
         >
           {config.text}
-        </span>
-      </div>
-      <p
+        </motion.span>
+      </motion.div>
+      <motion.p
+        key={`description-${status}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.3 }}
         style={{
           margin: 0,
           color: "#6B7280",
@@ -102,29 +122,40 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({
         }}
       >
         {config.description}
-      </p>
+      </motion.p>
 
       {/* Progress indicator for processing states */}
       {(status === "connecting" || status === "data_processing") && (
-        <div
+        <motion.div
+          initial={{ opacity: 0, scaleX: 0 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
           style={{
             marginTop: "16px",
             height: "4px",
             backgroundColor: "#E5E7EB",
             borderRadius: "2px",
             overflow: "hidden",
+            originX: 0,
           }}
         >
-          <div
+          <motion.div
             className="passage-progress-bar"
+            initial={{ width: "0%" }}
+            animate={{ width: "100%" }}
+            transition={{
+              duration: 1.5,
+              ease: "easeInOut",
+              repeat: Infinity,
+              delay: 0.5,
+            }}
             style={{
               height: "100%",
               backgroundColor: config.color,
-              animation: "passage-progress 1.5s ease-in-out infinite",
             }}
           />
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 };

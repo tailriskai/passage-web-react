@@ -58,9 +58,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   const onConnectionCompleteRef = useRef<
     ((data: PassageSuccessData) => void) | undefined
   >(undefined);
-  const onConnectionErrorRef = useRef<
-    ((error: PassageErrorData) => void) | undefined
-  >(undefined);
+  const onErrorRef = useRef<((error: PassageErrorData) => void) | undefined>(
+    undefined
+  );
   const onDataCompleteRef = useRef<
     ((data: PassageDataResult) => void) | undefined
   >(undefined);
@@ -84,7 +84,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       prompts: PassagePrompt[] = []
     ): Promise<string> => {
       try {
-        const baseUrl = config.baseUrl || DEFAULT_API_BASE_URL;
+        const apiUrl = config.socketUrl || DEFAULT_API_BASE_URL;
 
         const payload = {
           publishableKey,
@@ -105,10 +105,11 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           }
         );
 
-        const response = await fetch(`${baseUrl}${INTENT_TOKEN_PATH}`, {
+        const response = await fetch(`${apiUrl}${INTENT_TOKEN_PATH}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Publishable ${publishableKey}`,
           },
           body: JSON.stringify(payload),
         });
@@ -130,7 +131,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         throw error;
       }
     },
-    [config.baseUrl]
+    [config.socketUrl]
   );
 
   // Initialize method - generates intent token
@@ -153,7 +154,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
         // Store callbacks
         onConnectionCompleteRef.current = options.onConnectionComplete;
-        onConnectionErrorRef.current = options.onError;
+        onErrorRef.current = options.onError;
         onDataCompleteRef.current = options.onDataComplete;
         onPromptCompleteRef.current = options.onPromptComplete;
         onExitRef.current = options.onExit;
@@ -192,8 +193,12 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           data
         );
 
-        // Handle connection updates
-        if (eventName === "connection_update" || (data?.id && data?.status)) {
+        // Handle connection events
+        if (
+          eventName === "connection" ||
+          eventName === "connection_update" ||
+          (data?.id && data?.status)
+        ) {
           const connection: ConnectionUpdate = data;
           logger.debug(
             "[PassageProvider] Connection update received:",
@@ -203,10 +208,13 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           // Store the connection data
           setConnectionData(connection);
 
-          // Handle terminal states
-          if (connection.status === "data_available") {
+          // Update status from connection data
+          setStatus(connection.status);
+
+          // Handle connection status mappings
+          if (connection.status === "connected") {
             logger.debug(
-              "[PassageProvider] Connection successful - data_available status reached"
+              "[PassageProvider] Connection established - connected status reached"
             );
 
             const successData: PassageSuccessData = {
@@ -219,18 +227,28 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               data: connection.promptResults,
             };
 
-            // Update session data
-            const sessionDataResult: PassageDataResult = {
-              data: successData.data,
-              prompts: [], // Will be populated by prompt processing
-            };
-            setSessionData(sessionDataResult);
-
             logger.debug(
               "[PassageProvider] Calling onConnectionComplete callback with data:",
               successData
             );
             onConnectionCompleteRef.current?.(successData);
+          } else if (connection.status === "data_available") {
+            logger.debug(
+              "[PassageProvider] Data available - data_available status reached"
+            );
+
+            // Update session data
+            const sessionDataResult: PassageDataResult = {
+              data: connection.promptResults,
+              prompts: [], // Will be populated by prompt processing
+            };
+            setSessionData(sessionDataResult);
+
+            logger.debug(
+              "[PassageProvider] Calling onDataComplete callback with data:",
+              sessionDataResult
+            );
+            onDataCompleteRef.current?.(sessionDataResult);
           } else if (
             connection.status === "error" ||
             connection.status === "rejected"
@@ -251,10 +269,22 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             };
 
             logger.debug(
-              "[PassageProvider] Calling onConnectionError callback with data:",
+              "[PassageProvider] Calling onError callback with data:",
               errorData
             );
-            onConnectionErrorRef.current?.(errorData);
+            onErrorRef.current?.(errorData);
+          }
+        }
+
+        // Handle prompt events
+        if (eventName === "prompt") {
+          const prompt = data;
+          logger.debug("[PassageProvider] Prompt event received:", prompt);
+
+          // Handle prompt status mappings
+          if (prompt.status === "completed") {
+            logger.debug("[PassageProvider] Prompt completed:", prompt);
+            onPromptCompleteRef.current?.(prompt);
           }
         }
 
@@ -270,12 +300,72 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               statusValue
             );
             setStatus(statusValue);
+
+            // Handle error status
+            if (statusValue === "error") {
+              const errorData: PassageErrorData = {
+                error: "Connection error occurred",
+                code: "STATUS_ERROR",
+              };
+              logger.debug(
+                "[PassageProvider] Calling onError callback for error status:",
+                errorData
+              );
+              onErrorRef.current?.(errorData);
+            }
           }
         }
 
-        // Handle data complete events
+        // Handle WebSocket connection errors
+        if (eventName === "connect_error") {
+          logger.debug("[PassageProvider] WebSocket connection error:", data);
+          const errorData: PassageErrorData = {
+            error: data?.message || "WebSocket connection failed",
+            code: "WEBSOCKET_CONNECTION_ERROR",
+            data: data,
+          };
+          onErrorRef.current?.(errorData);
+        }
+
+        // Handle general WebSocket errors
+        if (eventName === "error") {
+          logger.debug("[PassageProvider] WebSocket error:", data);
+          const errorData: PassageErrorData = {
+            error: data?.message || "WebSocket error occurred",
+            code: "WEBSOCKET_ERROR",
+            data: data,
+          };
+          onErrorRef.current?.(errorData);
+        }
+
+        // Handle reconnection errors
+        if (eventName === "reconnect_error") {
+          logger.debug("[PassageProvider] WebSocket reconnection error:", data);
+          const errorData: PassageErrorData = {
+            error: data?.error || "WebSocket reconnection failed",
+            code: "WEBSOCKET_RECONNECTION_ERROR",
+            data: data,
+          };
+          onErrorRef.current?.(errorData);
+        }
+
+        // Handle reconnection failures
+        if (eventName === "reconnect_failed") {
+          logger.debug("[PassageProvider] WebSocket reconnection failed");
+          const errorData: PassageErrorData = {
+            error: "WebSocket reconnection failed permanently",
+            code: "WEBSOCKET_RECONNECTION_FAILED",
+          };
+          onErrorRef.current?.(errorData);
+        }
+
+        // Legacy event handlers for backward compatibility
+        // Handle data complete events (legacy)
         if (eventName === "DATA_COMPLETE") {
-          logger.debug("[PassageProvider] Data complete event received:", data);
+          logger.debug(
+            "[PassageProvider] Legacy DATA_COMPLETE event received:",
+            data
+          );
           const sessionDataResult: PassageDataResult = {
             data: data,
             prompts: [],
@@ -284,10 +374,10 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           onDataCompleteRef.current?.(sessionDataResult);
         }
 
-        // Handle prompt complete events
+        // Handle prompt complete events (legacy)
         if (eventName === "PROMPT_COMPLETE") {
           logger.debug(
-            "[PassageProvider] Prompt complete event received:",
+            "[PassageProvider] Legacy PROMPT_COMPLETE event received:",
             data
           );
           onPromptCompleteRef.current?.(data);
@@ -311,7 +401,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         const error =
           "No intent token available. Initialize first or provide intentToken in options";
         logger.error("[PassageProvider]", error);
-        options.onConnectionError?.({ error });
+        options.onError?.({ error });
         return;
       }
 
@@ -326,8 +416,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         if (options.onConnectionComplete) {
           onConnectionCompleteRef.current = options.onConnectionComplete;
         }
-        if (options.onConnectionError) {
-          onConnectionErrorRef.current = options.onConnectionError;
+        if (options.onError) {
+          onErrorRef.current = options.onError;
         }
         if (options.onDataComplete) {
           onDataCompleteRef.current = options.onDataComplete;
@@ -342,6 +432,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         // Set initial state
         setIntentToken(token);
         setPresentationStyle(options.presentationStyle || "modal");
+
+        // Set initial status to pending so QR code shows immediately
+        setStatus("pending");
 
         // Handle embed mode
         if (options.presentationStyle === "embed" && options.container) {
@@ -397,9 +490,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         };
 
         logger.debug(
-          "[PassageProvider] Calling onConnectionError callback due to open failure"
+          "[PassageProvider] Calling onError callback due to open failure"
         );
-        options.onConnectionError?.(errorData);
+        options.onError?.(errorData);
 
         // Clean up on error
         logger.debug("[PassageProvider] Cleaning up after error");
@@ -441,7 +534,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
     // Clear all callbacks
     onConnectionCompleteRef.current = undefined;
-    onConnectionErrorRef.current = undefined;
+    onErrorRef.current = undefined;
     onDataCompleteRef.current = undefined;
     onPromptCompleteRef.current = undefined;
     onExitRef.current = undefined;

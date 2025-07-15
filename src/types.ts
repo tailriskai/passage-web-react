@@ -101,7 +101,7 @@ export interface PassageOpenOptions {
   /**
    * Called when there's an error during connection
    */
-  onConnectionError?: (error: PassageErrorData) => void;
+  onError?: (error: PassageErrorData) => void;
 
   /**
    * Called when data is complete

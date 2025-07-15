@@ -1,7 +1,7 @@
 {
-  "name": "@tailriskai/passage-web-react",
-  "version": "0.0.3",
-  "description": "Passage SDK for Web/React applications",
+  "name": "@getpassage/react-js",
+  "version": "0.0.4",
+  "description": "Passage SDK for React JS applications",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -37,6 +37,7 @@
   "author": "Passage",
   "license": "MIT",
   "dependencies": {
+    "framer-motion": "^11.0.0",
     "qrcode": "^1.5.4",
     "socket.io-client": "^4.5.0"
   },
@@ -58,5 +59,6 @@
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "tslib": "^2.8.1",
     "typescript": "^5.0.0"
-  }
+  },
+  "packageManager": "pnpm@10.6.2+sha512.47870716bea1572b53df34ad8647b42962bc790ce2bf4562ba0f643237d7302a3d6a8ecef9e4bdfc01d23af1969aa90485d4cebb0b9638fa5ef1daef656f6c1b"
 }
