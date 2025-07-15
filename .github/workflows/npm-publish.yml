@@ -124,8 +124,8 @@ jobs:
         run: |
           ORG="${{ github.event.inputs.npm_organization }}"
 
-          # Use "passage-web-react" as the package name for NPM
-          PACKAGE_NAME="passage-web-react"
+          # Use "react-js" as the package name for NPM
+          PACKAGE_NAME="react-js"
 
           if [ -n "$ORG" ]; then
             # Organization provided - use scoped package name
@@ -147,7 +147,7 @@ jobs:
       - name: Check if version already exists on NPM
         run: |
           ORG="${{ github.event.inputs.npm_organization }}"
-          PACKAGE_NAME="passage-web-react"
+          PACKAGE_NAME="react-js"
           VERSION="${{ needs.validate.outputs.version }}"
 
           if [ -n "$ORG" ]; then
@@ -195,7 +195,7 @@ jobs:
         if: github.event.inputs.dry_run == 'false'
         run: |
           ORG="${{ github.event.inputs.npm_organization }}"
-          PACKAGE_NAME="passage-web-react"
+          PACKAGE_NAME="react-js"
           VERSION="${{ needs.validate.outputs.version }}"
           GIT_REF="${{ needs.validate.outputs.git_ref }}"
 
