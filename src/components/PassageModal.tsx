@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { QRCode } from "./QRCode";
 import { StatusDisplay } from "./StatusDisplay";
+import { logger } from "../logger";
 import type { ConnectionStatus, PassageModalStyles } from "../types";
 
 interface PassageModalProps {
@@ -28,7 +29,7 @@ export const PassageModal: React.FC<PassageModalProps> = ({
   useEffect(() => {
     if (intentToken) {
       setIsLoading(true);
-      console.log(
+      logger.debug(
         "[PassageModal] Generating QR code for intentToken:",
         intentToken
       );
@@ -39,8 +40,8 @@ export const PassageModal: React.FC<PassageModalProps> = ({
         timestamp: new Date().toISOString(),
       };
       const qrString = JSON.stringify(qrData);
-      console.log("[PassageModal] QR code data:", qrData);
-      console.log("[PassageModal] QR code string length:", qrString.length);
+      logger.debug("[PassageModal] QR code data:", qrData);
+      logger.debug("[PassageModal] QR code string length:", qrString.length);
       setQrValue(qrString);
       setIsLoading(false);
     } else {
@@ -50,7 +51,7 @@ export const PassageModal: React.FC<PassageModalProps> = ({
   }, [intentToken, baseUrl]);
 
   useEffect(() => {
-    console.log(
+    logger.debug(
       "[PassageModal] Modal state - isOpen:",
       isOpen,
       "status:",
@@ -61,7 +62,7 @@ export const PassageModal: React.FC<PassageModalProps> = ({
   }, [isOpen, status, intentToken]);
 
   if (!isOpen || !intentToken) {
-    console.log(
+    logger.debug(
       "[PassageModal] Not rendering - isOpen:",
       isOpen,
       "intentToken:",
@@ -74,7 +75,7 @@ export const PassageModal: React.FC<PassageModalProps> = ({
   const isComplete = status === "data_available";
   const hasError = status === "error" || status === "rejected";
 
-  console.log(
+  logger.debug(
     "[PassageModal] Render state - shouldShowQR:",
     shouldShowQR,
     "isComplete:",
@@ -348,7 +349,7 @@ export const PassageModal: React.FC<PassageModalProps> = ({
         {presentationStyle === "modal" && (
           <button
             onClick={() => {
-              console.log("[PassageModal] Close button clicked");
+              logger.debug("[PassageModal] Close button clicked");
               onClose();
             }}
             style={{
@@ -379,12 +380,12 @@ export const PassageModal: React.FC<PassageModalProps> = ({
   );
 
   if (presentationStyle === "embed") {
-    console.log("[PassageModal] Rendering in embed mode");
+    logger.debug("[PassageModal] Rendering in embed mode");
     return content;
   }
 
   // Modal presentation
-  console.log("[PassageModal] Rendering in modal mode");
+  logger.debug("[PassageModal] Rendering in modal mode");
   return (
     <>
       {/* Backdrop */}
@@ -405,7 +406,7 @@ export const PassageModal: React.FC<PassageModalProps> = ({
           animation: "passage-fade-in 0.2s ease-out",
         }}
         onClick={() => {
-          console.log("[PassageModal] Backdrop clicked");
+          logger.debug("[PassageModal] Backdrop clicked");
           onClose();
         }}
       >

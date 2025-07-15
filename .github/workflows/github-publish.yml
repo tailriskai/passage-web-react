@@ -1,0 +1,176 @@
+name: GitHub Publish
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          registry-url: "https://npm.pkg.github.com"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build package
+        run: npm run build
+
+      - name: Generate version from package.json + git hash
+        id: set_version
+        run: |
+          # Get base version from package.json
+          BASE_VERSION=$(node -p "require('./package.json').version")
+
+          # Get short git hash (last 7 characters)
+          GIT_HASH=$(git rev-parse --short=7 HEAD)
+
+          # Create version with git hash
+          VERSION="${BASE_VERSION}-${GIT_HASH}"
+
+          echo "BASE_VERSION=$BASE_VERSION" >> $GITHUB_OUTPUT
+          echo "GIT_HASH=$GIT_HASH" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+          echo "📦 Base version: $BASE_VERSION"
+          echo "🔗 Git hash: $GIT_HASH"
+          echo "🚀 Final version: $VERSION"
+
+          # Update package.json version with git hash
+          npm pkg set version="$VERSION"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.set_version.outputs.VERSION }}
+          release_name: Release v${{ steps.set_version.outputs.VERSION }}
+          body: |
+            ## Automatic GitHub Packages Release
+
+            **Base Version:** ${{ steps.set_version.outputs.BASE_VERSION }}  
+            **Git Hash:** ${{ steps.set_version.outputs.GIT_HASH }}  
+            **Commit:** ${{ github.sha }}
+
+            This release was automatically created from the latest commit on the main branch.
+
+            ---
+
+            ## Installation
+
+            ### GitHub Packages
+            ```bash
+            npm install @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}
+            ```
+
+            ### Latest from main
+            ```bash
+            npm install @tailriskai/passage-web-react@latest
+            ```
+          draft: false
+          prerelease: true
+
+      - name: Prepare for GitHub Packages publish
+        run: |
+          # Remove prepack/postpack scripts temporarily
+          npm pkg delete scripts.prepack
+          npm pkg delete scripts.postpack
+
+          # Copy the user README to be the main README
+          cp README.npm.md README.md
+
+          # Temporarily move other README files
+          mkdir -p .readme-backup
+          mv README.npm.md .readme-backup/ || true
+          mv README.repo.md .readme-backup/ || true
+
+          # Ensure package is scoped for GitHub Packages
+          npm pkg set name="@tailriskai/passage-web-react"
+
+          # Configure registry for GitHub Packages
+          npm pkg set publishConfig.registry="https://npm.pkg.github.com"
+
+      - name: Publish to GitHub Packages
+        run: npm publish --tag latest --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore README files
+        if: always()
+        run: |
+          # Restore the README files
+          mv .readme-backup/* . 2>/dev/null || true
+          rm -rf .readme-backup
+
+          # Restore repo README as the default
+          cp README.repo.md README.md || true
+
+      - name: Create tarball for release
+        run: |
+          npm pack
+          # Rename the file to a simpler name for the release asset
+          mv *.tgz passage-web-react-${{ steps.set_version.outputs.VERSION }}.tgz
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./passage-web-react-${{ steps.set_version.outputs.VERSION }}.tgz
+          asset_name: passage-web-react-${{ steps.set_version.outputs.VERSION }}.tgz
+          asset_content_type: application/gzip
+
+      - name: Output success message
+        run: |
+          echo "✅ Successfully published to GitHub Packages!"
+          echo "📦 Package: @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}"
+          echo "🔗 Install: npm install @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}"
+          echo "🚀 Latest: npm install @tailriskai/passage-web-react@latest"
+
+  update-changelog:
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: "CHANGELOG.md"
+          skip-version-file: true
+          skip-commit: true
+
+      - name: Create Pull Request
+        if: steps.changelog.outputs.skipped == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "docs: update CHANGELOG.md"
+          title: "docs: update CHANGELOG.md"
+          body: |
+            This PR updates the CHANGELOG.md file with the latest release information.
+
+            Auto-generated by GitHub Actions.
+          branch: update-changelog-${{ github.run_number }}
+          delete-branch: true

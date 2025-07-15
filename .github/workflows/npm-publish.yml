@@ -1,0 +1,217 @@
+name: Publish to NPM
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish to NPM (e.g., 1.0.1)"
+        required: true
+        type: string
+      git_ref:
+        description: "Git tag, branch, or commit to publish from (e.g., v0.0.9-14780cb, main, or commit hash)"
+        required: true
+        type: string
+      npm_organization:
+        description: "NPM organization to publish to (e.g., @getpassage) or leave empty for no organization"
+        required: false
+        type: string
+        default: "getpassage"
+      dry_run:
+        description: "Run in dry-run mode (simulate publish without actually publishing)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      git_ref_exists: ${{ steps.check_git_ref.outputs.exists }}
+      version: ${{ steps.validate_version.outputs.version }}
+      git_ref: ${{ steps.validate_git_ref.outputs.git_ref }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        id: validate_version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*)?(\+[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Version must follow semantic versioning (e.g., 1.0.0, 1.0.0-beta.1)"
+            exit 1
+          fi
+          echo "✅ Version format is valid: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Validate git reference
+        id: validate_git_ref
+        run: |
+          GIT_REF="${{ github.event.inputs.git_ref }}"
+          echo "git_ref=$GIT_REF" >> $GITHUB_OUTPUT
+
+      - name: Check if git reference exists
+        id: check_git_ref
+        run: |
+          GIT_REF="${{ github.event.inputs.git_ref }}"
+          if git rev-parse "$GIT_REF" >/dev/null 2>&1; then
+            echo "✅ Git reference $GIT_REF exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Git reference $GIT_REF does not exist"
+            echo "Available tags:"
+            git tag --sort=-version:refname | head -10
+            echo "Available recent branches:"
+            git branch -r --sort=-committerdate | head -10
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  publish-npm:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: needs.validate.outputs.git_ref_exists == 'true'
+    steps:
+      - name: Checkout code at git reference
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.git_ref }}
+
+      - name: Setup Node.js for NPM
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build package
+        run: npm run build
+
+      - name: Set version
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          # Update package.json version directly
+          npm pkg set version="$VERSION"
+
+      - name: Prepare for NPM publish
+        run: |
+          # Remove prepack/postpack scripts temporarily
+          npm pkg delete scripts.prepack
+          npm pkg delete scripts.postpack
+
+          # Copy the user README to be the main README
+          cp README.npm.md README.md
+
+          # Temporarily move other README files
+          mkdir -p .readme-backup
+          mv README.npm.md .readme-backup/ || true
+          mv README.repo.md .readme-backup/ || true
+
+      - name: Update package name for NPM
+        run: |
+          ORG="${{ github.event.inputs.npm_organization }}"
+
+          # Use "passage-web-react" as the package name for NPM
+          PACKAGE_NAME="passage-web-react"
+
+          if [ -n "$ORG" ]; then
+            # Organization provided - use scoped package name
+            if [[ "$ORG" == @* ]]; then
+              NEW_NAME="${ORG}/${PACKAGE_NAME}"
+            else
+              NEW_NAME="@${ORG}/${PACKAGE_NAME}"
+            fi
+          else
+            # No organization - use base package name
+            NEW_NAME="$PACKAGE_NAME"
+          fi
+
+          # Update package.json with new name
+          npm pkg set name="$NEW_NAME"
+
+          echo "Updated package name to: $NEW_NAME"
+
+      - name: Check if version already exists on NPM
+        run: |
+          ORG="${{ github.event.inputs.npm_organization }}"
+          PACKAGE_NAME="passage-web-react"
+          VERSION="${{ needs.validate.outputs.version }}"
+
+          if [ -n "$ORG" ]; then
+            if [[ "$ORG" == @* ]]; then
+              FULL_NAME="${ORG}/${PACKAGE_NAME}"
+            else
+              FULL_NAME="@${ORG}/${PACKAGE_NAME}"
+            fi
+          else
+            FULL_NAME="$PACKAGE_NAME"
+          fi
+
+          if npm view "$FULL_NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "❌ Version $VERSION already exists for $FULL_NAME on NPM"
+            exit 1
+          else
+            echo "✅ Version $VERSION is available for $FULL_NAME"
+          fi
+
+      - name: Dry run publish
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🧪 Running in dry-run mode"
+          npm publish --dry-run --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to NPM
+        if: github.event.inputs.dry_run == 'false'
+        run: npm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Restore README files
+        if: always()
+        run: |
+          # Restore the README files
+          mv .readme-backup/* . 2>/dev/null || true
+          rm -rf .readme-backup
+
+          # Restore repo README as the default
+          cp README.repo.md README.md || true
+
+      - name: Output success message
+        if: github.event.inputs.dry_run == 'false'
+        run: |
+          ORG="${{ github.event.inputs.npm_organization }}"
+          PACKAGE_NAME="passage-web-react"
+          VERSION="${{ needs.validate.outputs.version }}"
+          GIT_REF="${{ needs.validate.outputs.git_ref }}"
+
+          if [ -n "$ORG" ]; then
+            if [[ "$ORG" == @* ]]; then
+              FULL_NAME="${ORG}/${PACKAGE_NAME}"
+            else
+              FULL_NAME="@${ORG}/${PACKAGE_NAME}"
+            fi
+          else
+            FULL_NAME="$PACKAGE_NAME"
+          fi
+
+          echo "✅ Successfully published $FULL_NAME@$VERSION to NPM!"
+          echo "📦 Published from git reference: $GIT_REF"
+          echo "🔗 NPM: https://www.npmjs.com/package/$FULL_NAME"
+          echo "📦 Install with: npm install $FULL_NAME@$VERSION"
+
+      - name: Output dry run message
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🧪 Dry run completed successfully!"
+          echo "📦 Would publish from git reference: ${{ needs.validate.outputs.git_ref }}"
+          echo "📦 Would publish version: ${{ needs.validate.outputs.version }}"
+          echo "To actually publish, run this workflow again with dry_run=false"

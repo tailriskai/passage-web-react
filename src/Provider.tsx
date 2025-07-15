@@ -8,12 +8,23 @@ import React, {
 import ReactDOM from "react-dom";
 import { PassageModal } from "./components/PassageModal";
 import { WebSocketManager } from "./websocket-manager";
+import { logger } from "./logger";
+import {
+  DEFAULT_WEB_BASE_URL,
+  DEFAULT_API_BASE_URL,
+  DEFAULT_SOCKET_URL,
+  DEFAULT_SOCKET_NAMESPACE,
+  INTENT_TOKEN_PATH,
+} from "./config";
 import type {
   PassageConfig,
   PassageContextValue,
+  PassageInitializeOptions,
   PassageOpenOptions,
+  PassageDataResult,
   PassageSuccessData,
   PassageErrorData,
+  PassagePrompt,
   ConnectionStatus,
   ConnectionUpdate,
 } from "./types";
@@ -35,247 +46,306 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   const [connectionData, setConnectionData] = useState<ConnectionUpdate | null>(
     null
   );
+  const [sessionData, setSessionData] = useState<PassageDataResult | null>(
+    null
+  );
   const [presentationStyle, setPresentationStyle] = useState<"modal" | "embed">(
     "modal"
   );
   const [container, setContainer] = useState<HTMLElement | null>(null);
 
-  const optionsRef = useRef<PassageOpenOptions | null>(null);
+  // Store callbacks in refs to avoid re-renders
+  const onConnectionCompleteRef = useRef<
+    ((data: PassageSuccessData) => void) | undefined
+  >(undefined);
+  const onConnectionErrorRef = useRef<
+    ((error: PassageErrorData) => void) | undefined
+  >(undefined);
+  const onDataCompleteRef = useRef<
+    ((data: PassageDataResult) => void) | undefined
+  >(undefined);
+  const onPromptCompleteRef = useRef<((prompt: any) => void) | undefined>(
+    undefined
+  );
+  const onExitRef = useRef<((reason?: string) => void) | undefined>(undefined);
+
   const wsManager = WebSocketManager.getInstance();
 
-  // Configure debug mode
+  // Initialize logger with debug mode
   useEffect(() => {
-    console.log("[PassageProvider] Setting debug mode:", config.debug || false);
-    wsManager.setDebug(config.debug || false);
+    logger.setDebugMode(config.debug ?? false);
+    logger.debug("[PassageProvider] Initialized with config:", config);
   }, [config.debug]);
 
-  // Handle connection updates - now works independently of isOpen
+  // Generate intent token
+  const generateIntentToken = useCallback(
+    async (
+      publishableKey: string,
+      prompts: PassagePrompt[] = []
+    ): Promise<string> => {
+      try {
+        const baseUrl = config.baseUrl || DEFAULT_API_BASE_URL;
+
+        const payload = {
+          publishableKey,
+          prompts,
+        };
+
+        logger.debug(
+          "[PassageProvider] Generating intent token with payload:",
+          {
+            publishableKey,
+            promptsCount: prompts.length,
+            prompts: prompts.map((p) => ({
+              identifier: p.identifier,
+              prompt: p.prompt,
+              integrationid: p.integrationid,
+              forceRefresh: p.forceRefresh,
+            })),
+          }
+        );
+
+        const response = await fetch(`${baseUrl}${INTENT_TOKEN_PATH}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to generate intent token: ${response.status}`
+          );
+        }
+
+        const data = await response.json();
+        logger.debug("[PassageProvider] Intent token generated successfully");
+        return data.intentToken;
+      } catch (error) {
+        logger.error(
+          "[PassageProvider] Failed to generate intent token:",
+          error
+        );
+        throw error;
+      }
+    },
+    [config.baseUrl]
+  );
+
+  // Initialize method - generates intent token
+  const initialize = useCallback(
+    async (options: PassageInitializeOptions) => {
+      logger.debug("[PassageProvider] Initializing with options:", {
+        publishableKey: options.publishableKey,
+        hasPrompts: !!options.prompts?.length,
+        promptsCount: options.prompts?.length || 0,
+      });
+
+      try {
+        // Generate intent token
+        const token = await generateIntentToken(
+          options.publishableKey,
+          options.prompts || []
+        );
+        setIntentToken(token);
+        logger.debug("[PassageProvider] Initialization complete");
+
+        // Store callbacks
+        onConnectionCompleteRef.current = options.onConnectionComplete;
+        onConnectionErrorRef.current = options.onError;
+        onDataCompleteRef.current = options.onDataComplete;
+        onPromptCompleteRef.current = options.onPromptComplete;
+        onExitRef.current = options.onExit;
+      } catch (error) {
+        logger.error("[PassageProvider] Initialization failed:", error);
+        options.onError?.({
+          error:
+            error instanceof Error ? error.message : "Initialization failed",
+          data: error,
+        });
+      }
+    },
+    [generateIntentToken]
+  );
+
+  // Handle connection updates
   useEffect(() => {
     if (!intentToken) {
-      console.log(
+      logger.debug(
         "[PassageProvider] Skipping connection listener setup - no intentToken"
       );
       return;
     }
 
-    console.log(
+    logger.debug(
       "[PassageProvider] Setting up connection listener for intentToken:",
       intentToken
     );
 
-    const unsubscribeConnection = wsManager.addConnectionListener(
-      (connection: ConnectionUpdate) => {
-        console.log(
-          "[PassageProvider] Connection update received:",
-          connection
-        );
-
-        // Store the connection data
-        setConnectionData(connection);
-
-        // Note: Status is now only set from status events, not connection updates
-
-        // Handle terminal states
-        if (connection.status === "data_available") {
-          console.log(
-            "[PassageProvider] Connection successful - data_available status reached"
-          );
-          const successData: PassageSuccessData = {
-            connectionId: connection.id,
-            status: connection.status,
-            metadata: {
-              completedAt: new Date().toISOString(),
-              promptResults: connection.promptResults,
-            },
-          };
-
-          console.log(
-            "[PassageProvider] Calling onSuccess callback with data:",
-            successData
-          );
-          optionsRef.current?.onSuccess?.(successData);
-
-          // Note: Removed auto-close functionality - connection stays open
-        } else if (
-          connection.status === "error" ||
-          connection.status === "rejected"
-        ) {
-          console.log(
-            "[PassageProvider] Connection failed with status:",
-            connection.status
-          );
-          const errorData: PassageErrorData = {
-            error:
-              connection.status === "rejected"
-                ? "Connection rejected"
-                : "Connection failed",
-            code:
-              connection.status === "rejected"
-                ? "CONNECTION_REJECTED"
-                : "CONNECTION_ERROR",
-          };
-
-          console.log(
-            "[PassageProvider] Calling onError callback with data:",
-            errorData
-          );
-          optionsRef.current?.onError?.(errorData);
-        }
-      }
-    );
-
-    // Add dedicated status listener
-    const unsubscribeStatus = wsManager.addStatusListener(
-      (newStatus: ConnectionStatus) => {
-        console.log("[PassageProvider] Status event received:", newStatus);
-
-        // This is the ONLY place where status should be set
-        setStatus(newStatus);
-
-        // Notify status change callback
-        if (optionsRef.current?.onStatusChange) {
-          console.log(
-            "[PassageProvider] Calling onStatusChange callback with status:",
-            newStatus
-          );
-          optionsRef.current.onStatusChange(newStatus);
-        }
-      }
-    );
-
-    // Set up message listener for all websocket events
+    // Single message listener to handle all events
     const unsubscribeMessage = wsManager.addMessageListener(
       (eventName: string, data: any) => {
-        console.log(
+        logger.debug(
           "[PassageProvider] WebSocket message received:",
           eventName,
           data
         );
 
-        // Handle status events from messages
-        if (eventName === "status") {
-          // Status can be an array or string
-          const statusValue = Array.isArray(data) ? data[0] : data;
-          if (statusValue) {
-            console.log(
-              "[PassageProvider] Status from message event:",
-              statusValue
+        // Handle connection updates
+        if (eventName === "connection_update" || (data?.id && data?.status)) {
+          const connection: ConnectionUpdate = data;
+          logger.debug(
+            "[PassageProvider] Connection update received:",
+            connection
+          );
+
+          // Store the connection data
+          setConnectionData(connection);
+
+          // Handle terminal states
+          if (connection.status === "data_available") {
+            logger.debug(
+              "[PassageProvider] Connection successful - data_available status reached"
             );
-            // Trigger the status listener
-            wsManager.emitStatus(statusValue);
+
+            const successData: PassageSuccessData = {
+              connectionId: connection.id,
+              status: connection.status,
+              metadata: {
+                completedAt: new Date().toISOString(),
+                promptResults: connection.promptResults,
+              },
+              data: connection.promptResults,
+            };
+
+            // Update session data
+            const sessionDataResult: PassageDataResult = {
+              data: successData.data,
+              prompts: [], // Will be populated by prompt processing
+            };
+            setSessionData(sessionDataResult);
+
+            logger.debug(
+              "[PassageProvider] Calling onConnectionComplete callback with data:",
+              successData
+            );
+            onConnectionCompleteRef.current?.(successData);
+          } else if (
+            connection.status === "error" ||
+            connection.status === "rejected"
+          ) {
+            logger.debug(
+              "[PassageProvider] Connection failed with status:",
+              connection.status
+            );
+            const errorData: PassageErrorData = {
+              error:
+                connection.status === "rejected"
+                  ? "Connection rejected"
+                  : "Connection failed",
+              code:
+                connection.status === "rejected"
+                  ? "CONNECTION_REJECTED"
+                  : "CONNECTION_ERROR",
+            };
+
+            logger.debug(
+              "[PassageProvider] Calling onConnectionError callback with data:",
+              errorData
+            );
+            onConnectionErrorRef.current?.(errorData);
           }
         }
 
-        // Call onMessage callback if provided
-        if (optionsRef.current?.onMessage) {
-          console.log(
-            "[PassageProvider] Calling onMessage callback with:",
-            eventName,
+        // Handle status events
+        if (eventName === "status") {
+          // Status can be an array or string
+          const statusValue: ConnectionStatus = Array.isArray(data)
+            ? data[0]
+            : data;
+          if (statusValue) {
+            logger.debug(
+              "[PassageProvider] Status event received:",
+              statusValue
+            );
+            setStatus(statusValue);
+          }
+        }
+
+        // Handle data complete events
+        if (eventName === "DATA_COMPLETE") {
+          logger.debug("[PassageProvider] Data complete event received:", data);
+          const sessionDataResult: PassageDataResult = {
+            data: data,
+            prompts: [],
+          };
+          setSessionData(sessionDataResult);
+          onDataCompleteRef.current?.(sessionDataResult);
+        }
+
+        // Handle prompt complete events
+        if (eventName === "PROMPT_COMPLETE") {
+          logger.debug(
+            "[PassageProvider] Prompt complete event received:",
             data
           );
-          optionsRef.current.onMessage(eventName, data);
+          onPromptCompleteRef.current?.(data);
         }
       }
     );
 
     return () => {
-      console.log("[PassageProvider] Cleaning up listeners");
-      unsubscribeConnection();
-      unsubscribeStatus();
+      logger.debug("[PassageProvider] Cleaning up listeners");
       unsubscribeMessage();
     };
   }, [intentToken]);
 
-  // New method to connect WebSocket without opening modal
-  const connectWebSocket = useCallback(
-    async (token: string, options?: PassageOpenOptions) => {
-      console.log(
-        "[PassageProvider] Connecting WebSocket with token:",
-        token,
-        "options:",
-        options
-      );
+  // Open method with new signature
+  const open = useCallback(
+    async (options: PassageOpenOptions = {}) => {
+      // Use provided intent token or the stored one
+      const token = options.intentToken || intentToken;
+
+      if (!token) {
+        const error =
+          "No intent token available. Initialize first or provide intentToken in options";
+        logger.error("[PassageProvider]", error);
+        options.onConnectionError?.({ error });
+        return;
+      }
+
+      logger.debug("[PassageProvider] Opening Passage with options:", {
+        intentToken: token,
+        hasPrompts: !!options.prompts?.length,
+        presentationStyle: options.presentationStyle,
+      });
 
       try {
-        // Check if already connected with same token
-        if (wsManager.isActive() && wsManager.getIntentToken() === token) {
-          console.log("[PassageProvider] Already connected with same token");
-
-          // Set state from existing connection
-          setIntentToken(token);
-          const currentConnection = wsManager.getCurrentConnection();
-          if (currentConnection) {
-            setConnectionData(currentConnection);
-            // Note: Status will be set by status events
-          }
-
-          return;
+        // Store callbacks
+        if (options.onConnectionComplete) {
+          onConnectionCompleteRef.current = options.onConnectionComplete;
+        }
+        if (options.onConnectionError) {
+          onConnectionErrorRef.current = options.onConnectionError;
+        }
+        if (options.onDataComplete) {
+          onDataCompleteRef.current = options.onDataComplete;
+        }
+        if (options.onPromptComplete) {
+          onPromptCompleteRef.current = options.onPromptComplete;
+        }
+        if (options.onExit) {
+          onExitRef.current = options.onExit;
         }
 
-        // Store options
-        optionsRef.current = options || null;
-
         // Set initial state
         setIntentToken(token);
-        // Note: Status will be set by status events from WebSocket
-
-        // Connect WebSocket
-        const socketUrl =
-          config.socketUrl || "https://prod-gravy-connect-api.onrender.com";
-        const socketNamespace = config.socketNamespace || "/ws";
-
-        console.log(
-          "[PassageProvider] Connecting to WebSocket:",
-          socketUrl + socketNamespace
-        );
-        await wsManager.connect(token, socketUrl, socketNamespace);
-
-        console.log("[PassageProvider] WebSocket connected successfully");
-      } catch (error) {
-        console.error("[PassageProvider] Failed to connect WebSocket:", error);
-
-        const errorData: PassageErrorData = {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to connect WebSocket",
-          code: "WEBSOCKET_CONNECTION_ERROR",
-        };
-
-        console.log(
-          "[PassageProvider] Calling onError callback due to connection failure"
-        );
-        options?.onError?.(errorData);
-
-        // Clean up on error
-        console.log("[PassageProvider] Cleaning up after error");
-        setIntentToken(null);
-        // Status will be cleared by status events
-      }
-    },
-    [config]
-  );
-
-  const open = useCallback(
-    async (token: string, options?: PassageOpenOptions) => {
-      console.log(
-        "[PassageProvider] Opening Passage with token:",
-        token,
-        "options:",
-        options
-      );
-      try {
-        // Store options
-        optionsRef.current = options || null;
-
-        // Set initial state
-        setIntentToken(token);
-        // Note: Status will be set by status events from WebSocket
-        setPresentationStyle(options?.presentationStyle || "modal");
+        setPresentationStyle(options.presentationStyle || "modal");
 
         // Handle embed mode
-        if (options?.presentationStyle === "embed" && options.container) {
-          console.log(
+        if (options.presentationStyle === "embed" && options.container) {
+          logger.debug(
             "[PassageProvider] Setting up embed mode with container:",
             options.container
           );
@@ -293,7 +363,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
         // Check if already connected with same token
         if (wsManager.isActive() && wsManager.getIntentToken() === token) {
-          console.log(
+          logger.debug(
             "[PassageProvider] Reusing existing WebSocket connection"
           );
 
@@ -301,15 +371,14 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           const currentConnection = wsManager.getCurrentConnection();
           if (currentConnection) {
             setConnectionData(currentConnection);
-            // Note: Status will be set by status events
           }
         } else {
           // Connect WebSocket
-          const socketUrl =
-            config.socketUrl || "https://prod-gravy-connect-api.onrender.com";
-          const socketNamespace = config.socketNamespace || "/ws";
+          const socketUrl = config.socketUrl || DEFAULT_SOCKET_URL;
+          const socketNamespace =
+            config.socketNamespace || DEFAULT_SOCKET_NAMESPACE;
 
-          console.log(
+          logger.debug(
             "[PassageProvider] Connecting to WebSocket:",
             socketUrl + socketNamespace
           );
@@ -317,9 +386,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         }
 
         setIsOpen(true);
-        console.log("[PassageProvider] Passage opened successfully");
+        logger.debug("[PassageProvider] Passage opened successfully");
       } catch (error) {
-        console.error("[PassageProvider] Failed to open Passage:", error);
+        logger.error("[PassageProvider] Failed to open Passage:", error);
 
         const errorData: PassageErrorData = {
           error:
@@ -327,96 +396,85 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           code: "OPEN_ERROR",
         };
 
-        console.log(
-          "[PassageProvider] Calling onError callback due to open failure"
+        logger.debug(
+          "[PassageProvider] Calling onConnectionError callback due to open failure"
         );
-        options?.onError?.(errorData);
+        options.onConnectionError?.(errorData);
 
         // Clean up on error
-        console.log("[PassageProvider] Cleaning up after error");
+        logger.debug("[PassageProvider] Cleaning up after error");
         setIntentToken(null);
-        // Status will be cleared by status events
       }
     },
-    [config]
+    [config, intentToken]
   );
 
-  const close = useCallback(() => {
-    console.log("[PassageProvider] Closing Passage");
+  // Close method
+  const close = useCallback(async () => {
+    logger.debug("[PassageProvider] Closing Passage");
 
-    // Note: We don't disconnect WebSocket here anymore to allow reuse
-    // Only disconnect if explicitly requested
-
-    // Call onClose callback
-    if (optionsRef.current?.onClose) {
-      console.log("[PassageProvider] Calling onClose callback");
-      optionsRef.current.onClose();
+    // If not connected yet, this is a manual exit
+    if (!status || status === "pending" || status === "connecting") {
+      if (onExitRef.current) {
+        logger.debug(
+          "[PassageProvider] User manually closed modal before connection"
+        );
+        onExitRef.current("manual_close");
+      }
     }
-
-    // Reset modal state but keep connection
-    console.log("[PassageProvider] Resetting modal state");
-    setIsOpen(false);
-    setPresentationStyle("modal");
-    setContainer(null);
-  }, []);
-
-  // New method to disconnect WebSocket
-  const disconnect = useCallback(() => {
-    console.log("[PassageProvider] Disconnecting WebSocket");
-    wsManager.disconnect();
-
-    // Reset all state
-    setIsOpen(false);
-    setIntentToken(null);
-    setStatus(null);
-    setConnectionData(null);
-    setPresentationStyle("modal");
-    setContainer(null);
-    optionsRef.current = null;
-  }, []);
-
-  // New method to reset state without disconnecting WebSocket
-  const reset = useCallback(() => {
-    console.log("[PassageProvider] Resetting Passage state");
-
-    // Close any open modals
-    setIsOpen(false);
-
-    // Clear all state
-    setIntentToken(null);
-    setStatus(null);
-    setConnectionData(null);
-    setPresentationStyle("modal");
-    setContainer(null);
-    optionsRef.current = null;
 
     // Disconnect WebSocket if active
     if (wsManager.isActive()) {
-      console.log("[PassageProvider] Disconnecting active WebSocket");
+      logger.debug("[PassageProvider] Disconnecting active WebSocket");
       wsManager.disconnect();
     }
-  }, []);
+
+    // Reset all state
+    logger.debug("[PassageProvider] Resetting all state");
+    setIsOpen(false);
+    setIntentToken(null);
+    setStatus(null);
+    setConnectionData(null);
+    setSessionData(null);
+    setPresentationStyle("modal");
+    setContainer(null);
+
+    // Clear all callbacks
+    onConnectionCompleteRef.current = undefined;
+    onConnectionErrorRef.current = undefined;
+    onDataCompleteRef.current = undefined;
+    onPromptCompleteRef.current = undefined;
+    onExitRef.current = undefined;
+
+    logger.debug("[PassageProvider] Modal closed and state cleared");
+  }, [status]);
+
+  // Get data method
+  const getData = useCallback(async (): Promise<PassageDataResult> => {
+    if (sessionData) {
+      logger.debug("[PassageProvider] Returning cached session data");
+      return sessionData;
+    }
+
+    // If no cached data, return empty result
+    logger.debug("[PassageProvider] No session data available");
+    return {
+      data: null,
+      prompts: [],
+    };
+  }, [sessionData]);
 
   const contextValue: PassageContextValue = {
-    isOpen,
-    status,
+    initialize,
     open,
     close,
-    intentToken,
-    connectionData,
-    // Expose WebSocket manager methods for direct access
-    wsManager,
-    // New methods
-    connectWebSocket,
-    disconnect,
-    reset,
-    isWebSocketConnected: wsManager.isActive(),
+    getData,
   };
 
   // Render embedded content
   useEffect(() => {
     if (presentationStyle === "embed" && container && isOpen) {
-      console.log("[PassageProvider] Setting up embed portal");
+      logger.debug("[PassageProvider] Setting up embed portal");
       // Create a div for React portal if it doesn't exist
       let portalDiv = container.querySelector(
         ".passage-embed-portal"
@@ -425,7 +483,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         portalDiv = document.createElement("div");
         portalDiv.className = "passage-embed-portal";
         container.appendChild(portalDiv);
-        console.log("[PassageProvider] Created embed portal div");
+        logger.debug("[PassageProvider] Created embed portal div");
       }
     }
   }, [presentationStyle, container, isOpen]);
@@ -442,7 +500,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             isOpen={isOpen}
             intentToken={intentToken}
             status={status}
-            baseUrl={config.baseUrl || "https://gravy-connect-infra-web.vercel.app/"}
+            baseUrl={config.baseUrl || DEFAULT_WEB_BASE_URL}
             onClose={close}
             customStyles={config.customStyles}
             presentationStyle="modal"
@@ -457,7 +515,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             isOpen={isOpen}
             intentToken={intentToken}
             status={status}
-            baseUrl={config.baseUrl || "https://gravy-connect-infra-web.vercel.app/"}
+            baseUrl={config.baseUrl || DEFAULT_WEB_BASE_URL}
             onClose={close}
             customStyles={config.customStyles}
             presentationStyle="embed"

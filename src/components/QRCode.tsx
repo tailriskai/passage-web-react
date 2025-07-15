@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import QRCodeLib from "qrcode";
+import { logger } from "../logger";
 
 interface QRCodeProps {
   value: string;
@@ -33,7 +34,7 @@ export const QRCode: React.FC<QRCodeProps> = ({
       },
       (err, url) => {
         if (err) {
-          console.error("[QRCode] Error generating QR code:", err);
+          logger.error("[QRCode] Error generating QR code:", err);
         } else {
           setQrCodeDataUrl(url);
         }

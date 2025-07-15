@@ -1,11 +1,12 @@
 import { io, Socket } from "socket.io-client";
+import { logger } from "./logger";
 import type {
   ConnectionStatus,
   StatusUpdateMessage,
   ConnectionUpdate,
 } from "./types";
 
-const DEFAULT_SOCKET_URL = "https://prod-gravy-connect-api.onrender.com";
+const DEFAULT_SOCKET_URL = "https://api.getpassage.ai";
 const DEFAULT_SOCKET_NAMESPACE = "/ws";
 
 export class WebSocketManager {
@@ -19,7 +20,7 @@ export class WebSocketManager {
   private messageListeners: Set<(eventName: string, data: any) => void> =
     new Set();
   private currentConnection: ConnectionUpdate | null = null;
-  private debug: boolean = false;
+  private headlessCleanup: (() => void) | null = null;
 
   private constructor() {}
 
@@ -31,14 +32,12 @@ export class WebSocketManager {
   }
 
   setDebug(debug: boolean): void {
-    this.debug = debug;
-    this.log("Debug mode set to:", debug);
+    logger.setDebugMode(debug);
+    logger.debug("[WebSocketManager] Debug mode set to:", debug);
   }
 
-  private log(...args: any[]): void {
-    if (this.debug) {
-      console.log("[PassageWebSDK:WebSocket]", ...args);
-    }
+  setHeadlessCleanup(cleanup: () => void): void {
+    this.headlessCleanup = cleanup;
   }
 
   async connect(
@@ -47,20 +46,24 @@ export class WebSocketManager {
     namespace: string = DEFAULT_SOCKET_NAMESPACE
   ): Promise<void> {
     if (this.socket?.connected && this.intentToken === intentToken) {
-      this.log("Already connected with same intent token");
+      logger.debug(
+        "[WebSocketManager] Already connected with same intent token"
+      );
       return;
     }
 
     // Disconnect existing connection if any
     if (this.socket) {
-      this.log("Disconnecting existing socket before creating new connection");
+      logger.debug(
+        "[WebSocketManager] Disconnecting existing socket before creating new connection"
+      );
       this.disconnect();
     }
 
     this.intentToken = intentToken;
 
-    this.log(
-      `Connecting to ${socketUrl}${namespace} with intent token:`,
+    logger.debug(
+      `[WebSocketManager] Connecting to ${socketUrl}${namespace} with intent token:`,
       intentToken
     );
 
@@ -81,7 +84,9 @@ export class WebSocketManager {
 
       const timeout = setTimeout(() => {
         if (!isResolved) {
-          this.log("Connection timeout after 10 seconds");
+          logger.debug(
+            "[WebSocketManager] Connection timeout after 10 seconds"
+          );
           reject(new Error("WebSocket connection timeout"));
         }
       }, 10000);
@@ -93,27 +98,34 @@ export class WebSocketManager {
 
       this.socket!.once("connect", () => {
         this.isConnected = true;
-        this.log("Connected to WebSocket server, socket ID:", this.socket?.id);
+        logger.debug(
+          "[WebSocketManager] Connected to WebSocket server, socket ID:",
+          this.socket?.id
+        );
         // Don't resolve yet - wait for welcome or connection message
       });
 
       this.socket!.once("connect_error", (error) => {
         cleanup();
-        this.log("Connection error:", error.message);
+        logger.debug("[WebSocketManager] Connection error:", error.message);
         reject(error);
       });
 
       // Resolve when we get welcome or connection message
       this.socket!.once("welcome", () => {
         cleanup();
-        this.log("Received welcome message, connection established");
+        logger.debug(
+          "[WebSocketManager] Received welcome message, connection established"
+        );
         resolve();
       });
 
       // Also resolve on connection data
       this.socket!.once("connection", () => {
         cleanup();
-        this.log("Received connection data, connection established");
+        logger.debug(
+          "[WebSocketManager] Received connection data, connection established"
+        );
         resolve();
       });
     });
@@ -121,24 +133,29 @@ export class WebSocketManager {
 
   private setupEventHandlers(): void {
     if (!this.socket) {
-      this.log("No socket available for event handler setup");
+      logger.debug(
+        "[WebSocketManager] No socket available for event handler setup"
+      );
       return;
     }
 
-    this.log("Setting up event handlers");
+    logger.debug("[WebSocketManager] Setting up event handlers");
 
     this.socket.on("disconnect", (reason) => {
-      this.log("Disconnected from WebSocket server:", reason);
+      logger.debug(
+        "[WebSocketManager] Disconnected from WebSocket server:",
+        reason
+      );
       this.isConnected = false;
     });
 
     this.socket.on("error", (error) => {
-      this.log("WebSocket error:", error);
+      logger.debug("[WebSocketManager] WebSocket error:", error);
     });
 
-    // NEW: Handle connection event with ConnectionUpdate data
+    // Handle connection event with ConnectionUpdate data
     this.socket.on("connection", (data: ConnectionUpdate) => {
-      this.log("Received 'connection' event:", data);
+      logger.debug("[WebSocketManager] Received 'connection' event:", data);
       this.currentConnection = data;
 
       // Notify message listeners
@@ -151,9 +168,9 @@ export class WebSocketManager {
       this.notifyStatusListeners(data.status);
     });
 
-    // Primary status event handler - matches backend StatusRouterService
+    // Primary status event handler
     this.socket.on("status", (status: ConnectionStatus) => {
-      this.log("Received 'status' event:", status);
+      logger.debug("[WebSocketManager] Received 'status' event:", status);
 
       // Notify message listeners
       this.notifyMessageListeners("status", status);
@@ -163,7 +180,10 @@ export class WebSocketManager {
 
     // Handle status updates with message format
     this.socket.on("status_update", (message: StatusUpdateMessage) => {
-      this.log("Received 'status_update' event:", message);
+      logger.debug(
+        "[WebSocketManager] Received 'status_update' event:",
+        message
+      );
 
       // Notify message listeners
       this.notifyMessageListeners("status_update", message);
@@ -175,7 +195,10 @@ export class WebSocketManager {
     this.socket.on(
       "connection_status",
       (data: { status: ConnectionStatus }) => {
-        this.log("Received 'connection_status' event:", data);
+        logger.debug(
+          "[WebSocketManager] Received 'connection_status' event:",
+          data
+        );
 
         // Notify message listeners
         this.notifyMessageListeners("connection_status", data);
@@ -184,7 +207,7 @@ export class WebSocketManager {
       }
     );
 
-    // Legacy support for individual status events
+    // Support for individual status events
     const statusEvents: ConnectionStatus[] = [
       "pending",
       "connecting",
@@ -197,7 +220,10 @@ export class WebSocketManager {
 
     statusEvents.forEach((status) => {
       this.socket!.on(status, (data?: any) => {
-        this.log(`Received individual '${status}' event:`, data);
+        logger.debug(
+          `[WebSocketManager] Received individual '${status}' event:`,
+          data
+        );
 
         // Notify message listeners
         this.notifyMessageListeners(status, data);
@@ -206,10 +232,25 @@ export class WebSocketManager {
       });
     });
 
+    // Handle DATA_COMPLETE event
+    this.socket.on("DATA_COMPLETE", (data: any) => {
+      logger.debug("[WebSocketManager] Received 'DATA_COMPLETE' event:", data);
+      this.notifyMessageListeners("DATA_COMPLETE", data);
+    });
+
+    // Handle PROMPT_COMPLETE event
+    this.socket.on("PROMPT_COMPLETE", (data: any) => {
+      logger.debug(
+        "[WebSocketManager] Received 'PROMPT_COMPLETE' event:",
+        data
+      );
+      this.notifyMessageListeners("PROMPT_COMPLETE", data);
+    });
+
     // Log all events for debugging
-    if (this.debug) {
+    if (logger["enabled"]) {
       this.socket.onAny((eventName, ...args) => {
-        this.log(`Received event '${eventName}':`, args);
+        logger.debug(`[WebSocketManager] Received event '${eventName}':`, args);
 
         // Notify message listeners for all events in debug mode
         this.notifyMessageListeners(eventName, args);
@@ -217,42 +258,49 @@ export class WebSocketManager {
     }
 
     this.socket.on("welcome", (data) => {
-      this.log("Welcome message from server:", data);
+      logger.debug("[WebSocketManager] Welcome message from server:", data);
 
       // Notify message listeners
       this.notifyMessageListeners("welcome", data);
     });
 
     this.socket.on("connect", () => {
-      this.log("Socket reconnected, ID:", this.socket?.id);
+      logger.debug(
+        "[WebSocketManager] Socket reconnected, ID:",
+        this.socket?.id
+      );
 
       // Notify message listeners
       this.notifyMessageListeners("connect", { socketId: this.socket?.id });
     });
 
     this.socket.on("reconnect", (attemptNumber) => {
-      this.log("Socket reconnected after", attemptNumber, "attempts");
+      logger.debug(
+        "[WebSocketManager] Socket reconnected after",
+        attemptNumber,
+        "attempts"
+      );
 
       // Notify message listeners
       this.notifyMessageListeners("reconnect", { attemptNumber });
     });
 
     this.socket.on("reconnect_attempt", (attemptNumber) => {
-      this.log("Reconnection attempt #", attemptNumber);
+      logger.debug("[WebSocketManager] Reconnection attempt #", attemptNumber);
 
       // Notify message listeners
       this.notifyMessageListeners("reconnect_attempt", { attemptNumber });
     });
 
     this.socket.on("reconnect_error", (error) => {
-      this.log("Reconnection error:", error.message);
+      logger.debug("[WebSocketManager] Reconnection error:", error.message);
 
       // Notify message listeners
       this.notifyMessageListeners("reconnect_error", { error: error.message });
     });
 
     this.socket.on("reconnect_failed", () => {
-      this.log("Reconnection failed");
+      logger.debug("[WebSocketManager] Reconnection failed");
 
       // Notify message listeners
       this.notifyMessageListeners("reconnect_failed", {});
@@ -260,8 +308,8 @@ export class WebSocketManager {
   }
 
   private notifyStatusListeners(status: ConnectionStatus): void {
-    this.log(
-      `Notifying ${this.statusListeners.size} listeners of status:`,
+    logger.debug(
+      `[WebSocketManager] Notifying ${this.statusListeners.size} listeners of status:`,
       status
     );
 
@@ -277,72 +325,76 @@ export class WebSocketManager {
     ];
 
     if (!validStatuses.includes(status)) {
-      this.log("WARNING: Received unknown status:", status);
+      logger.debug(
+        "[WebSocketManager] WARNING: Received unknown status:",
+        status
+      );
     }
 
     this.statusListeners.forEach((listener) => {
       try {
-        this.log("Calling status listener with:", status);
+        logger.debug(
+          "[WebSocketManager] Calling status listener with:",
+          status
+        );
         listener(status);
       } catch (error) {
-        console.error(
-          "[PassageWebSDK:WebSocket] Error in status listener:",
-          error
-        );
+        logger.error("[WebSocketManager] Error in status listener:", error);
       }
     });
   }
 
   private notifyConnectionListeners(connection: ConnectionUpdate): void {
-    this.log(
-      `Notifying ${this.connectionListeners.size} listeners of connection update:`,
+    logger.debug(
+      `[WebSocketManager] Notifying ${this.connectionListeners.size} listeners of connection update:`,
       connection
     );
 
     this.connectionListeners.forEach((listener) => {
       try {
-        this.log("Calling connection listener with:", connection);
+        logger.debug(
+          "[WebSocketManager] Calling connection listener with:",
+          connection
+        );
         listener(connection);
       } catch (error) {
-        console.error(
-          "[PassageWebSDK:WebSocket] Error in connection listener:",
-          error
-        );
+        logger.error("[WebSocketManager] Error in connection listener:", error);
       }
     });
   }
 
   private notifyMessageListeners(eventName: string, data: any): void {
-    this.log(
-      `Notifying ${this.messageListeners.size} listeners of message:`,
+    logger.debug(
+      `[WebSocketManager] Notifying ${this.messageListeners.size} listeners of message:`,
       eventName,
       data
     );
 
     this.messageListeners.forEach((listener) => {
       try {
-        this.log("Calling message listener with:", eventName, data);
+        logger.debug(
+          "[WebSocketManager] Calling message listener with:",
+          eventName,
+          data
+        );
         listener(eventName, data);
       } catch (error) {
-        console.error(
-          "[PassageWebSDK:WebSocket] Error in message listener:",
-          error
-        );
+        logger.error("[WebSocketManager] Error in message listener:", error);
       }
     });
   }
 
   addStatusListener(listener: (status: ConnectionStatus) => void): () => void {
-    this.log(
-      "Adding status listener, total listeners:",
+    logger.debug(
+      "[WebSocketManager] Adding status listener, total listeners:",
       this.statusListeners.size + 1
     );
     this.statusListeners.add(listener);
 
     // Return unsubscribe function
     return () => {
-      this.log(
-        "Removing status listener, remaining listeners:",
+      logger.debug(
+        "[WebSocketManager] Removing status listener, remaining listeners:",
         this.statusListeners.size - 1
       );
       this.statusListeners.delete(listener);
@@ -352,22 +404,24 @@ export class WebSocketManager {
   addConnectionListener(
     listener: (connection: ConnectionUpdate) => void
   ): () => void {
-    this.log(
-      "Adding connection listener, total listeners:",
+    logger.debug(
+      "[WebSocketManager] Adding connection listener, total listeners:",
       this.connectionListeners.size + 1
     );
     this.connectionListeners.add(listener);
 
     // If we already have a connection, immediately notify the new listener
     if (this.currentConnection) {
-      this.log("Immediately notifying new listener with current connection");
+      logger.debug(
+        "[WebSocketManager] Immediately notifying new listener with current connection"
+      );
       listener(this.currentConnection);
     }
 
     // Return unsubscribe function
     return () => {
-      this.log(
-        "Removing connection listener, remaining listeners:",
+      logger.debug(
+        "[WebSocketManager] Removing connection listener, remaining listeners:",
         this.connectionListeners.size - 1
       );
       this.connectionListeners.delete(listener);
@@ -377,16 +431,16 @@ export class WebSocketManager {
   addMessageListener(
     listener: (eventName: string, data: any) => void
   ): () => void {
-    this.log(
-      "Adding message listener, total listeners:",
+    logger.debug(
+      "[WebSocketManager] Adding message listener, total listeners:",
       this.messageListeners.size + 1
     );
     this.messageListeners.add(listener);
 
     // Return unsubscribe function
     return () => {
-      this.log(
-        "Removing message listener, remaining listeners:",
+      logger.debug(
+        "[WebSocketManager] Removing message listener, remaining listeners:",
         this.messageListeners.size - 1
       );
       this.messageListeners.delete(listener);
@@ -398,14 +452,14 @@ export class WebSocketManager {
   }
 
   emitStatus(status: ConnectionStatus): void {
-    this.log("Manually emitting status:", status);
+    logger.debug("[WebSocketManager] Manually emitting status:", status);
     this.notifyStatusListeners(status);
   }
 
   disconnect(): void {
     if (this.socket) {
-      this.log(
-        "Disconnecting WebSocket, clearing",
+      logger.debug(
+        "[WebSocketManager] Disconnecting WebSocket, clearing",
         this.statusListeners.size,
         "listeners"
       );
@@ -417,15 +471,21 @@ export class WebSocketManager {
       this.connectionListeners.clear();
       this.messageListeners.clear();
       this.currentConnection = null;
+
+      // Call headless cleanup if set
+      if (this.headlessCleanup) {
+        this.headlessCleanup();
+        this.headlessCleanup = null;
+      }
     } else {
-      this.log("No socket to disconnect");
+      logger.debug("[WebSocketManager] No socket to disconnect");
     }
   }
 
   isActive(): boolean {
     const active = this.isConnected && this.socket?.connected === true;
-    this.log(
-      "Socket active check:",
+    logger.debug(
+      "[WebSocketManager] Socket active check:",
       active,
       "isConnected:",
       this.isConnected,
@@ -436,7 +496,7 @@ export class WebSocketManager {
   }
 
   getIntentToken(): string | null {
-    this.log("Getting intent token:", this.intentToken);
+    logger.debug("[WebSocketManager] Getting intent token:", this.intentToken);
     return this.intentToken;
   }
 }

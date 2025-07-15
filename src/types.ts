@@ -10,10 +10,33 @@ export type ConnectionStatus =
   | "error";
 
 export interface PassageConfig {
+  /**
+   * Base URL for the Passage web app
+   * @default "https://ui.getpassage.ai"
+   */
   baseUrl?: string;
+
+  /**
+   * Socket server URL for websocket connections
+   * @default "https://api.getpassage.ai"
+   */
   socketUrl?: string;
+
+  /**
+   * Socket namespace
+   * @default "/ws"
+   */
   socketNamespace?: string;
+
+  /**
+   * Enable debug logging
+   * @default false
+   */
   debug?: boolean;
+
+  /**
+   * Custom styles for the modal
+   */
   customStyles?: PassageModalStyles;
 }
 
@@ -25,29 +48,141 @@ export interface PassageModalStyles {
   footer?: React.CSSProperties;
 }
 
-export interface PassageOpenOptions {
-  onSuccess?: (data: PassageSuccessData) => void;
+export interface PassagePrompt {
+  identifier: string;
+  prompt: string;
+  integrationid: string;
+  forceRefresh: boolean;
+}
+
+export interface PassagePromptResponse {
+  key: string;
+  value: string;
+  response?: any;
+}
+
+export interface PassageInitializeOptions {
+  /**
+   * Publishable key for authentication
+   */
+  publishableKey: string;
+
+  /**
+   * Prompts to process after connection
+   */
+  prompts?: PassagePrompt[];
+
+  /**
+   * Callbacks
+   */
+  onConnectionComplete?: (data: PassageSuccessData) => void;
   onError?: (error: PassageErrorData) => void;
-  onClose?: () => void;
-  onStatusChange?: (status: ConnectionStatus) => void;
-  onMessage?: (eventName: string, data: any) => void;
+  onDataComplete?: (data: PassageDataResult) => void;
+  onPromptComplete?: (prompt: PassagePromptResponse) => void;
+  onExit?: (reason?: string) => void;
+}
+
+export interface PassageOpenOptions {
+  /**
+   * The intent token for authentication (optional - will use provider state if not provided)
+   */
+  intentToken?: string;
+
+  /**
+   * Optional prompts to process after connection
+   */
+  prompts?: PassagePrompt[];
+
+  /**
+   * Called when the connection is successfully established
+   */
+  onConnectionComplete?: (data: PassageSuccessData) => void;
+
+  /**
+   * Called when there's an error during connection
+   */
+  onConnectionError?: (error: PassageErrorData) => void;
+
+  /**
+   * Called when data is complete
+   */
+  onDataComplete?: (data: PassageDataResult) => void;
+
+  /**
+   * Called when a prompt is successfully processed
+   */
+  onPromptComplete?: (prompt: PassagePromptResponse) => void;
+
+  /**
+   * Called when the user manually closes the modal before connection
+   */
+  onExit?: (reason?: string) => void;
+
+  /**
+   * Presentation style for the modal
+   * @default "modal"
+   */
   presentationStyle?: "modal" | "embed";
+
+  /**
+   * Container element for embed mode
+   */
   container?: string | HTMLElement;
 }
 
+export interface PassageDataResult {
+  /**
+   * The data from the connection
+   */
+  data?: any;
+
+  /**
+   * Prompts and their results
+   */
+  prompts?: Array<{
+    prompt: string;
+    results: any;
+  }>;
+}
+
 export interface PassageSuccessData {
-  connectionId: string;
-  status: ConnectionStatus;
+  connectionId?: string;
+  status?: ConnectionStatus;
   metadata?: {
     completedAt?: string;
+    promptResults?: any;
     [key: string]: any;
+  };
+  data?: any;
+  pageData?: {
+    cookies?: Array<{
+      name: string;
+      value: string;
+      domain: string;
+    }>;
+    localStorage?: Array<{
+      name: string;
+      value: string;
+    }>;
+    sessionStorage?: Array<{
+      name: string;
+      value: string;
+    }>;
+    html?: string;
+    url?: string;
+  };
+  sessionInfo?: {
+    cookies: any[];
+    localStorage: any[];
+    sessionStorage: any[];
   };
 }
 
 export interface PassageErrorData {
   error: string;
-  code: string;
+  code?: string;
   details?: any;
+  data?: any;
 }
 
 export type ConnectionPromptResultStatus = "completed" | "failed" | "pending";
@@ -63,20 +198,10 @@ export interface ConnectionUpdate {
 }
 
 export interface PassageContextValue {
-  isOpen: boolean;
-  status: ConnectionStatus | null;
-  open: (intentToken: string, options?: PassageOpenOptions) => Promise<void>;
-  close: () => void;
-  intentToken: string | null;
-  connectionData?: ConnectionUpdate | null;
-  wsManager: WebSocketManager;
-  connectWebSocket: (
-    intentToken: string,
-    options?: PassageOpenOptions
-  ) => Promise<void>;
-  disconnect: () => void;
-  reset: () => void;
-  isWebSocketConnected: boolean;
+  initialize: (options: PassageInitializeOptions) => Promise<void>;
+  open: (options?: PassageOpenOptions) => Promise<void>;
+  close: () => Promise<void>;
+  getData: () => Promise<PassageDataResult>;
 }
 
 export interface StatusUpdateMessage {

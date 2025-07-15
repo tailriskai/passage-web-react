@@ -1,4 +1,5 @@
 import React from "react";
+import { logger } from "../logger";
 import type { ConnectionStatus } from "../types";
 
 interface StatusDisplayProps {
@@ -65,10 +66,10 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({
 }) => {
   const config = statusConfig[status];
 
-  console.log("[StatusDisplay] Rendering status:", status, "config:", config);
+  logger.debug("[StatusDisplay] Rendering status:", status, "config:", config);
 
   if (!config) {
-    console.error("[StatusDisplay] Unknown status:", status);
+    logger.error("[StatusDisplay] Unknown status:", status);
     return null;
   }
 
