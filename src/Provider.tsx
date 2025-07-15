@@ -15,6 +15,7 @@ import {
   DEFAULT_SOCKET_URL,
   DEFAULT_SOCKET_NAMESPACE,
   INTENT_TOKEN_PATH,
+  PASSAGE_DATA_RESULTS_KEY,
 } from "./config";
 import type {
   PassageConfig,
@@ -30,6 +31,46 @@ import type {
 } from "./types";
 
 export const PassageContext = createContext<PassageContextValue | null>(null);
+
+// LocalStorage helper functions
+const getStoredDataResults = (): Array<{
+  intentToken: string;
+  data: any;
+  timestamp: string;
+}> => {
+  try {
+    const stored = localStorage.getItem(PASSAGE_DATA_RESULTS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    logger.error(
+      "[PassageProvider] Failed to parse stored data results:",
+      error
+    );
+    return [];
+  }
+};
+
+const storeDataResult = (intentToken: string, data: any): void => {
+  try {
+    const existing = getStoredDataResults();
+    const newResult = {
+      intentToken,
+      data,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Add to the beginning of the array (most recent first)
+    const updated = [newResult, ...existing];
+
+    localStorage.setItem(PASSAGE_DATA_RESULTS_KEY, JSON.stringify(updated));
+    logger.debug(
+      "[PassageProvider] Stored data result in localStorage:",
+      newResult
+    );
+  } catch (error) {
+    logger.error("[PassageProvider] Failed to store data result:", error);
+  }
+};
 
 interface PassageProviderProps {
   children: React.ReactNode;
@@ -184,14 +225,6 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       return;
     }
 
-    // Only set up listener when modal is open
-    if (!isOpen) {
-      logger.debug(
-        "[PassageProvider] Skipping connection listener setup - modal not open"
-      );
-      return;
-    }
-
     logger.debug(
       "[PassageProvider] Setting up connection listener for intentToken:",
       intentToken
@@ -256,6 +289,11 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               prompts: [], // Will be populated by prompt processing
             };
             setSessionData(sessionDataResult);
+
+            // Store in localStorage if we have an intentToken
+            if (intentToken) {
+              storeDataResult(intentToken, sessionDataResult);
+            }
 
             logger.debug(
               "[PassageProvider] Calling onDataComplete callback with data:",
@@ -397,6 +435,12 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             prompts: [],
           };
           setSessionData(sessionDataResult);
+
+          // Store in localStorage if we have an intentToken
+          if (intentToken) {
+            storeDataResult(intentToken, sessionDataResult);
+          }
+
           onDataCompleteRef.current?.(sessionDataResult);
         }
 
@@ -415,7 +459,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       logger.debug("[PassageProvider] Cleaning up listeners");
       unsubscribeMessage();
     };
-  }, [intentToken, isOpen]);
+  }, [intentToken]);
 
   // Open method with new signature
   const open = useCallback(
@@ -543,14 +587,15 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       }
     }
 
-    // Disconnect WebSocket if active
-    if (wsManager.isActive()) {
-      logger.debug("[PassageProvider] Disconnecting active WebSocket");
-      wsManager.disconnect();
-    }
+    // Keep WebSocket connected - only close the modal UI
+    logger.debug(
+      "[PassageProvider] Keeping WebSocket connected for background events"
+    );
 
     // Reset state but preserve intent token for reopening
-    logger.debug("[PassageProvider] Resetting state (preserving intent token)");
+    logger.debug(
+      "[PassageProvider] Resetting state (preserving intent token and WebSocket)"
+    );
     setIsOpen(false);
     // Keep intentToken so modal can be reopened without reinitializing
     setStatus(null);
@@ -559,7 +604,27 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     setPresentationStyle("modal");
     setContainer(null);
 
-    // Clear all callbacks
+    // Keep callbacks active for background events
+    logger.debug(
+      "[PassageProvider] Keeping callbacks active for background events"
+    );
+
+    logger.debug(
+      "[PassageProvider] Modal closed and state cleared (intent token and WebSocket preserved)"
+    );
+  }, [status]);
+
+  // Disconnect method
+  const disconnect = useCallback(async () => {
+    logger.debug("[PassageProvider] Disconnecting WebSocket");
+
+    // Disconnect WebSocket if active
+    if (wsManager.isActive()) {
+      logger.debug("[PassageProvider] Disconnecting active WebSocket");
+      wsManager.disconnect();
+    }
+
+    // Clear all callbacks on explicit disconnect
     onConnectionCompleteRef.current = undefined;
     onErrorRef.current = undefined;
     onDataCompleteRef.current = undefined;
@@ -567,19 +632,35 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     onExitRef.current = undefined;
 
     logger.debug(
-      "[PassageProvider] Modal closed and state cleared (intent token preserved)"
+      "[PassageProvider] WebSocket disconnected and callbacks cleared"
     );
-  }, [status]);
+  }, []);
 
   // Get data method
   const getData = useCallback(async (): Promise<PassageDataResult> => {
+    // Get stored data from localStorage
+    const storedResults = getStoredDataResults();
+
+    if (storedResults.length > 0) {
+      logger.debug(
+        "[PassageProvider] Returning stored data results:",
+        storedResults
+      );
+      // Return the stored results in the expected format
+      return {
+        data: storedResults,
+        prompts: [],
+      };
+    }
+
+    // If no stored data and we have session data, return session data
     if (sessionData) {
       logger.debug("[PassageProvider] Returning cached session data");
       return sessionData;
     }
 
-    // If no cached data, return empty result
-    logger.debug("[PassageProvider] No session data available");
+    // If no data available, return empty result
+    logger.debug("[PassageProvider] No data available");
     return {
       data: null,
       prompts: [],
@@ -590,6 +671,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     initialize,
     open,
     close,
+    disconnect,
     getData,
   };
 

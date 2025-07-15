@@ -211,6 +211,7 @@ export interface PassageContextValue {
   initialize: (options: PassageInitializeOptions) => Promise<void>;
   open: (options?: PassageOpenOptions) => Promise<void>;
   close: () => Promise<void>;
+  disconnect: () => Promise<void>;
   getData: () => Promise<PassageDataResult>;
 }
 

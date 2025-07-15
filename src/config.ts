@@ -14,6 +14,9 @@ export const DEFAULT_SOCKET_NAMESPACE = "/ws";
 // API endpoint paths
 export const INTENT_TOKEN_PATH = "/intent-token";
 
+// LocalStorage keys
+export const PASSAGE_DATA_RESULTS_KEY = "passage_data_results";
+
 // Full URLs (convenience constants)
 export const DEFAULT_CONNECT_URL = `${DEFAULT_WEB_BASE_URL}${CONNECT_PATH}`;
 

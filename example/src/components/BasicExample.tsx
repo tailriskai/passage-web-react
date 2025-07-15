@@ -11,7 +11,7 @@ import LogDisplay from "./LogDisplay";
 const BasicExample: React.FC = () => {
   const passage = usePassage();
   const [publishableKey, setPublishableKey] = useState(
-    "pk-live-2dfb6cbf-be07-4f9b-877e-f8eaf19b2913"
+    "pk-test-2dfb6cbf-be07-4f9b-877e-f8eaf34b2913"
   );
   const [integrationId, setIntegrationId] = useState("audible");
   const [selectedIntegration, setSelectedIntegration] =
@@ -125,6 +125,10 @@ const BasicExample: React.FC = () => {
     addLog("Opening Passage modal...");
 
     try {
+      // Disconnect any existing WebSocket connection before opening
+      addLog("🔌 Disconnecting existing WebSocket connection...");
+      await passage.disconnect();
+
       await passage.open({
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
@@ -150,10 +154,9 @@ const BasicExample: React.FC = () => {
     }
   };
 
-  const handleClose = async () => {
-    addLog("Closing Passage modal...");
-    await passage.close();
-    addLog("👋 Passage modal closed");
+  const handleReset = () => {
+    addLog("🔄 Reloading page...");
+    window.location.reload();
   };
 
   const handleGetData = async () => {
@@ -310,18 +313,18 @@ const BasicExample: React.FC = () => {
 
         <button
           className="button secondary"
-          onClick={handleClose}
-          disabled={!isInitialized}
-        >
-          Close Modal
-        </button>
-
-        <button
-          className="button secondary"
           onClick={handleGetData}
           disabled={!isInitialized}
         >
           Get Data
+        </button>
+
+        <button
+          className="button secondary"
+          onClick={handleReset}
+          style={{ marginLeft: "auto" }}
+        >
+          🔄 Reset
         </button>
       </div>
 
