@@ -17,17 +17,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
           registry-url: "https://npm.pkg.github.com"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build package
-        run: npm run build
+        run: pnpm build
 
       - name: Generate version from package.json + git hash
         id: set_version
@@ -50,7 +56,7 @@ jobs:
           echo "🚀 Final version: $VERSION"
 
           # Update package.json version with git hash
-          npm pkg set version="$VERSION"
+          pnpm pkg set version="$VERSION"
 
       - name: Create Release
         id: create_release
@@ -75,12 +81,12 @@ jobs:
 
             ### GitHub Packages
             ```bash
-            npm install @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}
+            pnpm add @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}
             ```
 
             ### Latest from main
             ```bash
-            npm install @tailriskai/passage-web-react@latest
+            pnpm add @tailriskai/passage-web-react@latest
             ```
           draft: false
           prerelease: true
@@ -88,8 +94,8 @@ jobs:
       - name: Prepare for GitHub Packages publish
         run: |
           # Remove prepack/postpack scripts temporarily
-          npm pkg delete scripts.prepack
-          npm pkg delete scripts.postpack
+          pnpm pkg delete scripts.prepack
+          pnpm pkg delete scripts.postpack
 
           # Copy the user README to be the main README
           cp README.npm.md README.md
@@ -100,13 +106,13 @@ jobs:
           mv README.repo.md .readme-backup/ || true
 
           # Ensure package is scoped for GitHub Packages
-          npm pkg set name="@tailriskai/passage-web-react"
+          pnpm pkg set name="@tailriskai/passage-web-react"
 
           # Configure registry for GitHub Packages
-          npm pkg set publishConfig.registry="https://npm.pkg.github.com"
+          pnpm pkg set publishConfig.registry="https://npm.pkg.github.com"
 
       - name: Publish to GitHub Packages
-        run: npm publish --tag latest --no-git-checks
+        run: pnpm publish --tag latest --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -122,7 +128,7 @@ jobs:
 
       - name: Create tarball for release
         run: |
-          npm pack
+          pnpm pack
           # Rename the file to a simpler name for the release asset
           mv *.tgz passage-web-react-${{ steps.set_version.outputs.VERSION }}.tgz
 
@@ -140,8 +146,8 @@ jobs:
         run: |
           echo "✅ Successfully published to GitHub Packages!"
           echo "📦 Package: @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}"
-          echo "🔗 Install: npm install @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}"
-          echo "🚀 Latest: npm install @tailriskai/passage-web-react@latest"
+          echo "🔗 Install: pnpm add @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}"
+          echo "🚀 Latest: pnpm add @tailriskai/passage-web-react@latest"
 
   update-changelog:
     needs: build-and-publish

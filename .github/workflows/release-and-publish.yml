@@ -35,18 +35,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
           registry-url: "https://npm.pkg.github.com"
           scope: "@tailriskai"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build package
-        run: npm run build
+        run: pnpm build
 
       - name: Set version from tag or input
         id: set_version
@@ -59,7 +65,7 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
           # Update package.json version
-          npm version $VERSION --no-git-tag-version
+          pnpm version $VERSION --no-git-tag-version
 
       - name: Create Release
         id: create_release
@@ -79,7 +85,7 @@ jobs:
             ## Installation
 
             ```bash
-            npm install @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}
+            pnpm add @tailriskai/passage-web-react@${{ steps.set_version.outputs.VERSION }}
             ```
           draft: false
           prerelease: false
@@ -87,8 +93,8 @@ jobs:
       - name: Prepare for publish
         run: |
           # Remove prepack/postpack scripts temporarily
-          npm pkg delete scripts.prepack
-          npm pkg delete scripts.postpack
+          pnpm pkg delete scripts.prepack
+          pnpm pkg delete scripts.postpack
 
           # Copy the user README to be the main README
           cp README.npm.md README.md
@@ -99,7 +105,7 @@ jobs:
           mv README.repo.md .readme-backup/ || true
 
       - name: Publish to GitHub Packages
-        run: npm publish
+        run: pnpm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -115,7 +121,7 @@ jobs:
 
       - name: Create tarball for release
         run: |
-          npm pack
+          pnpm pack
           # Rename the file to a simpler name for the release asset
           mv tailriskai-passage-web-react-*.tgz passage-web-react-${{ steps.set_version.outputs.VERSION }}.tgz
 
