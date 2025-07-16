@@ -127,7 +127,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       products: string[] = ["history"]
     ): Promise<string> => {
       try {
-        const apiUrl = config.socketUrl || DEFAULT_API_BASE_URL;
+        const apiUrl = config.apiUrl || DEFAULT_API_BASE_URL;
 
         const payload = {
           integrationId,
@@ -174,7 +174,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         throw error;
       }
     },
-    [config.socketUrl]
+    [config.apiUrl]
   );
 
   // Initialize method - generates intent token
@@ -707,7 +707,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             isOpen={isOpen}
             intentToken={intentTokenRef.current}
             status={status}
-            baseUrl={config.baseUrl || DEFAULT_WEB_BASE_URL}
+            baseUrl={config.webUrl || DEFAULT_WEB_BASE_URL}
             onClose={close}
             customStyles={config.customStyles}
             presentationStyle="modal"
@@ -722,7 +722,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             isOpen={isOpen}
             intentToken={intentTokenRef.current}
             status={status}
-            baseUrl={config.baseUrl || DEFAULT_WEB_BASE_URL}
+            baseUrl={config.webUrl || DEFAULT_WEB_BASE_URL}
             onClose={close}
             customStyles={config.customStyles}
             presentationStyle="embed"

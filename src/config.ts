@@ -22,7 +22,8 @@ export const DEFAULT_CONNECT_URL = `${DEFAULT_WEB_BASE_URL}${CONNECT_PATH}`;
 
 // Configuration defaults object
 export const CONFIG_DEFAULTS = {
-  baseUrl: DEFAULT_WEB_BASE_URL,
+  webUrl: DEFAULT_WEB_BASE_URL,
+  apiUrl: DEFAULT_API_BASE_URL,
   socketUrl: DEFAULT_SOCKET_URL,
   socketNamespace: DEFAULT_SOCKET_NAMESPACE,
 } as const;

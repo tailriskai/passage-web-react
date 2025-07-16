@@ -247,6 +247,12 @@ export class WebSocketManager {
       this.notifyMessageListeners("PROMPT_COMPLETE", data);
     });
 
+    // Handle prompt events (new format)
+    this.socket.on("prompt", (data: any) => {
+      logger.debug("[WebSocketManager] Received 'prompt' event:", data);
+      this.notifyMessageListeners("prompt", data);
+    });
+
     // Log all events for debugging
     if (logger["enabled"]) {
       this.socket.onAny((eventName, ...args) => {

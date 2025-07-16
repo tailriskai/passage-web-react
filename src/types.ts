@@ -12,10 +12,16 @@ export type ConnectionStatus =
 
 export interface PassageConfig {
   /**
-   * Base URL for the Passage web app
+   * Web URL for the Passage web app UI
    * @default "https://ui.getpassage.ai"
    */
-  baseUrl?: string;
+  webUrl?: string;
+
+  /**
+   * API URL for backend API calls
+   * @default "https://api.getpassage.ai"
+   */
+  apiUrl?: string;
 
   /**
    * Socket server URL for websocket connections
