@@ -82,7 +82,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   config = {},
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [intentToken, setIntentToken] = useState<string | null>(null);
+  const intentTokenRef = useRef<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
   const [connectionData, setConnectionData] = useState<ConnectionUpdate | null>(
     null
@@ -195,7 +195,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           options.integrationId,
           options.products || ["history"]
         );
-        setIntentToken(token);
+        intentTokenRef.current = token;
         logger.debug("[PassageProvider] Initialization complete");
 
         // Store callbacks
@@ -218,7 +218,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
   // Handle connection updates
   useEffect(() => {
-    if (!intentToken) {
+    if (!intentTokenRef.current) {
       logger.debug(
         "[PassageProvider] Skipping connection listener setup - no intentToken"
       );
@@ -227,7 +227,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
     logger.debug(
       "[PassageProvider] Setting up connection listener for intentToken:",
-      intentToken
+      intentTokenRef.current
     );
 
     // Single message listener to handle all events
@@ -285,14 +285,17 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
             // Update session data
             const sessionDataResult: PassageDataResult = {
-              data: connection.promptResults,
-              prompts: [], // Will be populated by prompt processing
+              data: connection.data,
+              prompts: connection.promptResults.map((promptResult) => ({
+                prompt: promptResult.promptId,
+                results: promptResult.result,
+              })),
             };
             setSessionData(sessionDataResult);
 
             // Store in localStorage if we have an intentToken
-            if (intentToken) {
-              storeDataResult(intentToken, sessionDataResult);
+            if (intentTokenRef.current) {
+              storeDataResult(intentTokenRef.current, sessionDataResult);
             }
 
             logger.debug(
@@ -437,8 +440,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           setSessionData(sessionDataResult);
 
           // Store in localStorage if we have an intentToken
-          if (intentToken) {
-            storeDataResult(intentToken, sessionDataResult);
+          if (intentTokenRef.current) {
+            storeDataResult(intentTokenRef.current, sessionDataResult);
           }
 
           onDataCompleteRef.current?.(sessionDataResult);
@@ -459,13 +462,13 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       logger.debug("[PassageProvider] Cleaning up listeners");
       unsubscribeMessage();
     };
-  }, [intentToken]);
+  }, [intentTokenRef.current]);
 
   // Open method with new signature
   const open = useCallback(
     async (options: PassageOpenOptions = {}) => {
       // Use provided intent token or the stored one
-      const token = options.intentToken || intentToken;
+      const token = options.intentToken || intentTokenRef.current;
 
       if (!token) {
         const error =
@@ -500,7 +503,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         }
 
         // Set initial state
-        setIntentToken(token);
+        intentTokenRef.current = token;
         setPresentationStyle(options.presentationStyle || "modal");
 
         // Set initial status to pending so QR code shows immediately
@@ -570,7 +573,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         );
       }
     },
-    [config, intentToken]
+    [config]
   );
 
   // Close method
@@ -702,7 +705,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         ReactDOM.createPortal(
           <PassageModal
             isOpen={isOpen}
-            intentToken={intentToken}
+            intentToken={intentTokenRef.current}
             status={status}
             baseUrl={config.baseUrl || DEFAULT_WEB_BASE_URL}
             onClose={close}
@@ -717,7 +720,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         <div className="passage-embed-container">
           <PassageModal
             isOpen={isOpen}
-            intentToken={intentToken}
+            intentToken={intentTokenRef.current}
             status={status}
             baseUrl={config.baseUrl || DEFAULT_WEB_BASE_URL}
             onClose={close}

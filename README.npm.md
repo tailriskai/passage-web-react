@@ -291,6 +291,10 @@ Called when data processing is complete and the user's data is available.
 ```tsx
 onDataComplete: (data: PassageDataResult) => {
   console.log("Processing complete:", data);
+  console.log("User data:", data.data);
+  console.log("Prompt responses:", data.prompts);
+  // Data structure:
+  // data.prompts = [{ prompt: "promptId", results: "user response" }]
   // Data is now ready for use
 };
 ```

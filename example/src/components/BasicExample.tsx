@@ -154,6 +154,95 @@ const BasicExample: React.FC = () => {
     }
   };
 
+  const handleInitializeAndOpen = async () => {
+    setLoading(true);
+    setPromptResults([]);
+    addLog("🚀 Initialize and Open in one step...");
+
+    // Validate integrationId is selected
+    if (!integrationId) {
+      addLog("❌ Please select an integration type first", "error");
+      setLoading(false);
+      return;
+    }
+
+    const promptsToSend: PassagePrompt[] = [];
+    if (prompt.name && prompt.value) {
+      promptsToSend.push(prompt);
+    }
+
+    try {
+      // Step 1: Initialize
+      addLog("1️⃣ Initializing Passage...");
+      await passage.initialize({
+        publishableKey,
+        integrationId: integrationId || undefined,
+        products,
+        prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
+        onConnectionComplete: (data: PassageSuccessData) => {
+          addLog(
+            `✅ Connection complete! Connection ID: ${data.connectionId}`,
+            "success"
+          );
+          addLog(
+            `Data received: ${JSON.stringify(data.data, null, 2)}`,
+            "success"
+          );
+        },
+        onError: (error: PassageErrorData) => {
+          addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
+        },
+        onDataComplete: (data) => {
+          addLog(
+            `📊 Data processing complete: ${JSON.stringify(data, null, 2)}`,
+            "success"
+          );
+        },
+        onPromptComplete: (promptResponse: PassagePromptResponse) => {
+          addLog(
+            `🎯 Prompt completed: ${promptResponse.key} = ${promptResponse.value}`,
+            "success"
+          );
+          setPromptResults((prev) => [...prev, promptResponse]);
+        },
+        onExit: (reason) => {
+          addLog(`👋 User exited: ${reason || "unknown reason"}`);
+        },
+      });
+
+      setIsInitialized(true);
+      addLog("✅ Initialization complete!", "success");
+
+      // Step 2: Open modal (add small delay to ensure state is updated)
+      addLog("2️⃣ Opening Passage modal...");
+      await new Promise((resolve) => setTimeout(resolve, 100)); // Allow state to update
+      await passage.open({
+        onConnectionComplete: (data: PassageSuccessData) => {
+          addLog(
+            `✅ Modal: Connection complete! Status: ${data.status}`,
+            "success"
+          );
+        },
+        onError: (error: PassageErrorData) => {
+          addLog(`❌ Modal: Error occurred: ${error.error}`, "error");
+        },
+        onPromptComplete: (promptResponse: PassagePromptResponse) => {
+          addLog(
+            `🎯 Modal prompt: ${promptResponse.key} = ${promptResponse.value}`,
+            "success"
+          );
+          setPromptResults((prev) => [...prev, promptResponse]);
+        },
+      });
+
+      addLog("🎉 Initialize and Open completed successfully!", "success");
+    } catch (error) {
+      addLog(`❌ Initialize and Open failed: ${error}`, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleReset = () => {
     addLog("🔄 Reloading page...");
     window.location.reload();
@@ -309,6 +398,20 @@ const BasicExample: React.FC = () => {
           disabled={!isInitialized}
         >
           2. Open Modal
+        </button>
+
+        <button
+          className="button"
+          onClick={handleInitializeAndOpen}
+          disabled={loading}
+          style={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            border: "none",
+            color: "white",
+            fontWeight: "600",
+          }}
+        >
+          {loading ? "🚀 Processing..." : "🚀 Initialize & Open"}
         </button>
 
         <button

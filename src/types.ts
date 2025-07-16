@@ -151,7 +151,7 @@ export interface PassageDataResult {
    */
   prompts?: Array<{
     prompt: string;
-    results: any;
+    results: string;
   }>;
 }
 
@@ -200,6 +200,7 @@ export type ConnectionPromptResultStatus = "completed" | "failed" | "pending";
 export interface ConnectionUpdate {
   id: string;
   status: ConnectionStatus;
+  data?: any;
   promptResults: {
     promptId: string;
     status: ConnectionPromptResultStatus;
