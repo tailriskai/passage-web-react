@@ -151,98 +151,98 @@ export const PassageModal: React.FC<PassageModalProps> = ({
     },
   };
 
-  // ConnectFlow iframe content - now the only content option
-  const content = (
-    <motion.div
-      key="passage-connect-flow-content"
-      className="passage-connect-flow"
-      layout
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      style={{
-        width: `${iframeWidth}px`, // Dynamic width based on iframe content
-        height: `${iframeHeight}px`, // Dynamic height based on iframe content
-        maxWidth: "min(90vw, 600px)", // Responsive max width
-        maxHeight: "min(90vh, 800px)", // Responsive max height
-        borderRadius: presentationStyle === "modal" ? "12px" : "0",
-        overflow: "hidden",
-        backgroundColor: "#FFFFFF",
-        transition: "width 0.3s ease-out, height 0.3s ease-out", // Smooth dimension transitions
-        ...mergedStyles.content,
-      }}
-    >
-      {isInitializing ? (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "#F9FAFB",
-          }}
-        >
-          <div
-            style={{
-              textAlign: "center",
-            }}
-          >
-            {/* Loading spinner */}
-            <div
-              className="passage-loading-spinner"
-              style={{
-                width: "48px",
-                height: "48px",
-                margin: "0 auto 16px",
-                border: "3px solid #E5E7EB",
-                borderTopColor: "#3B82F6",
-                borderRadius: "50%",
-                animation: "passage-spin 1s linear infinite",
-              }}
-            />
-            <p
-              style={{
-                margin: 0,
-                fontSize: "14px",
-                color: "#6B7280",
-              }}
-            >
-              Establishing secure connection...
-            </p>
-          </div>
-        </div>
-      ) : (
-        <iframe
-          src={`${baseUrl}/connect?intentToken=${intentToken || ""}&userAgent=${USER_AGENT}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            border: "none",
-            display: "block",
-          }}
-          title="Passage Connect Flow"
-          allow="clipboard-read; clipboard-write"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-        />
-      )}
-    </motion.div>
-  );
-
   if (presentationStyle === "embed") {
     logger.debug("[PassageModal] Rendering in embed mode");
-    return content;
+
+    // Embed mode - render iframe directly without modal wrapper
+    return (
+      <motion.div
+        key="passage-connect-flow-content"
+        className="passage-connect-flow"
+        layout
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        style={{
+          width: `${iframeWidth}px`, // Dynamic width based on iframe content
+          height: `${iframeHeight}px`, // Dynamic height based on iframe content
+          maxWidth: "min(90vw, 600px)", // Responsive max width
+          maxHeight: "min(90vh, 800px)", // Responsive max height
+          borderRadius: "12px",
+          overflow: "hidden",
+          backgroundColor: "#FFFFFF",
+          transition: "width 0.3s ease-out, height 0.3s ease-out", // Smooth dimension transitions
+          ...mergedStyles.content,
+        }}
+      >
+        {isInitializing ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              width: "100%",
+              height: "100%",
+              backgroundColor: "#F9FAFB",
+            }}
+          >
+            <div
+              style={{
+                textAlign: "center",
+              }}
+            >
+              {/* Loading spinner */}
+              <div
+                className="passage-loading-spinner"
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  margin: "0 auto 16px",
+                  border: "3px solid #E5E7EB",
+                  borderTopColor: "#3B82F6",
+                  borderRadius: "50%",
+                  animation: "passage-spin 1s linear infinite",
+                }}
+              />
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  color: "#6B7280",
+                }}
+              >
+                Establishing secure connection...
+              </p>
+            </div>
+          </div>
+        ) : (
+          <iframe
+            src={`${baseUrl}/connect?intentToken=${intentToken || ""}&userAgent=${USER_AGENT}&modal=false`}
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+              display: "block",
+            }}
+            title="Passage Connect Flow"
+            allow="clipboard-read; clipboard-write"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+          />
+        )}
+      </motion.div>
+    );
   }
 
-  // Modal presentation
-  logger.debug("[PassageModal] Rendering in modal mode");
+  // Modal presentation - render iframe fullscreen with transparency
+  // Let ConnectFlow handle the modal UI entirely
+  logger.debug("[PassageModal] Rendering in fullscreen transparent modal mode");
   return (
     <AnimatePresence>
-      {/* Backdrop */}
+      {/* Fullscreen transparent container */}
       <motion.div
-        key="passage-modal-backdrop"
-        className="passage-modal-backdrop"
+        key="passage-modal-fullscreen"
+        className="passage-modal-fullscreen"
         data-passage-modal="true"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -254,78 +254,125 @@ export const PassageModal: React.FC<PassageModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backgroundColor: "transparent", // Transparent background
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "20px",
-          boxSizing: "border-box",
           zIndex: 9999,
-        }}
-        onClick={() => {
-          logger.debug("[PassageModal] Backdrop clicked");
-          onClose();
+          pointerEvents: isInitializing ? "auto" : "none", // Allow interactions to pass through to iframe when loaded
         }}
       >
-        {/* Modal Container */}
-        <motion.div
-          key="passage-modal-container"
-          className="passage-modal-container"
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{
-            duration: 0.3,
-            ease: "easeOut",
-            layout: { duration: 0.3 },
-          }}
-          layout
-          style={{
-            position: "relative",
-            zIndex: 10000,
-            ...mergedStyles.container,
-          }}
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        >
-          {content}
-
-          {/* Close button overlay for modal mode */}
-          {presentationStyle === "modal" && (
-            <button
-              onClick={() => {
-                logger.debug("[PassageModal] Close button clicked");
-                onClose();
-              }}
+        {isInitializing ? (
+          // Show loading state with backdrop when initializing
+          <>
+            {/* Loading backdrop */}
+            <div
               style={{
                 position: "absolute",
-                top: "16px",
-                right: "16px",
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
                 backgroundColor: "rgba(0, 0, 0, 0.5)",
-                border: "none",
-                color: "white",
-                cursor: "pointer",
+                zIndex: 1,
+              }}
+              onClick={onClose}
+            />
+            {/* Loading content */}
+            <motion.div
+              style={{
+                position: "relative",
+                zIndex: 2,
+                width: "400px",
+                height: "300px",
+                backgroundColor: "#FFFFFF",
+                borderRadius: "12px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "18px",
-                fontWeight: "bold",
-                zIndex: 10001,
-                transition: "all 0.2s",
+                boxShadow:
+                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                pointerEvents: "auto",
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-              }}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             >
-              ×
-            </button>
-          )}
-        </motion.div>
+              <div style={{ textAlign: "center" }}>
+                {/* Loading spinner */}
+                <div
+                  className="passage-loading-spinner"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    margin: "0 auto 16px",
+                    border: "3px solid #E5E7EB",
+                    borderTopColor: "#3B82F6",
+                    borderRadius: "50%",
+                    animation: "passage-spin 1s linear infinite",
+                  }}
+                />
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "14px",
+                    color: "#6B7280",
+                  }}
+                >
+                  Establishing secure connection...
+                </p>
+              </div>
+
+              {/* Close button for loading state */}
+              <button
+                onClick={onClose}
+                style={{
+                  position: "absolute",
+                  top: "16px",
+                  right: "16px",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  backgroundColor: "rgba(0, 0, 0, 0.5)",
+                  border: "none",
+                  color: "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
+                  fontWeight: "bold",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+                }}
+              >
+                ×
+              </button>
+            </motion.div>
+          </>
+        ) : (
+          // Render fullscreen iframe - let ConnectFlow handle the modal
+          <iframe
+            src={`${baseUrl}/connect?intentToken=${intentToken || ""}&userAgent=${USER_AGENT}&modal=true`}
+            style={{
+              width: "100vw",
+              height: "100vh",
+              border: "none",
+              display: "block",
+              backgroundColor: "transparent",
+              pointerEvents: "auto", // Enable interactions with iframe content
+            }}
+            title="Passage Connect Flow"
+            allow="clipboard-read; clipboard-write"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+          />
+        )}
       </motion.div>
 
       {/* CSS Animations */}
@@ -336,38 +383,15 @@ export const PassageModal: React.FC<PassageModalProps> = ({
         }
         
         /* Ensure Passage modal is always on top */
-        .passage-modal-backdrop {
+        .passage-modal-fullscreen {
           z-index: 99999 !important;
-        }
-        
-        .passage-modal-container {
-          z-index: 100000 !important;
         }
         
         /* Mobile responsive styles */
         @media (max-width: 768px) {
-          .passage-modal-backdrop {
-            padding: 10px !important;
-          }
-          
-          .passage-connect-flow {
-            max-width: 95vw !important;
-            max-height: 90vh !important;
-            width: 100% !important;
-            min-width: 320px !important;
-          }
-        }
-        
-        /* Extra small screens */
-        @media (max-width: 480px) {
-          .passage-modal-backdrop {
-            padding: 5px !important;
-          }
-          
-          .passage-connect-flow {
-            max-width: 98vw !important;
-            max-height: 95vh !important;
-            border-radius: 8px !important;
+          .passage-modal-fullscreen iframe {
+            width: 100vw !important;
+            height: 100vh !important;
           }
         }
       `}</style>

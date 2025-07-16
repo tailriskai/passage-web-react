@@ -8,10 +8,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <PassageProvider
       config={{
-        debug: true, // Enable debug logging for the example
-        // You can customize these URLs if needed
-        baseUrl: "http://localhost:3001",
-        socketUrl: "http://localhost:3000",
+        debug: true,
       }}
     >
       <App />
