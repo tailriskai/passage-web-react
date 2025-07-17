@@ -28,6 +28,7 @@ import type {
   PassagePrompt,
   ConnectionStatus,
   ConnectionUpdate,
+  PassagePromptResponse,
 } from "./types";
 
 export const PassageContext = createContext<PassageContextValue | null>(null);
@@ -105,9 +106,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   const onDataCompleteRef = useRef<
     ((data: PassageDataResult) => void) | undefined
   >(undefined);
-  const onPromptCompleteRef = useRef<((prompt: any) => void) | undefined>(
-    undefined
-  );
+  const onPromptCompleteRef = useRef<
+    ((prompt: PassagePromptResponse) => void) | undefined
+  >(undefined);
   const onExitRef = useRef<((reason?: string) => void) | undefined>(undefined);
 
   const wsManager = WebSocketManager.getInstance();
@@ -341,9 +342,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               logger.debug("[PassageProvider] Prompt completed:", singlePrompt);
 
               // Transform server response to match PassagePromptResponse interface
-              const promptResponse = {
+              const promptResponse: PassagePromptResponse = {
                 name: singlePrompt.name,
-                value: singlePrompt.result?.content || singlePrompt.value || "",
                 outputType: singlePrompt.outputType,
                 outputFormat: singlePrompt.outputFormat,
                 content: singlePrompt.result?.content || "",
