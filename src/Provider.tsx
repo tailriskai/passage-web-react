@@ -342,8 +342,11 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
               // Transform server response to match PassagePromptResponse interface
               const promptResponse = {
-                key: singlePrompt.name || singlePrompt.key,
+                name: singlePrompt.name,
                 value: singlePrompt.result?.content || singlePrompt.value || "",
+                outputType: singlePrompt.outputType,
+                outputFormat: singlePrompt.outputFormat,
+                content: singlePrompt.result?.content || "",
                 response: singlePrompt,
               };
 

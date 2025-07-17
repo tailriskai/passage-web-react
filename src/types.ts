@@ -65,6 +65,9 @@ export interface PassagePrompt {
 export interface PassagePromptResponse {
   name: string;
   value: string;
+  outputType?: "text" | "json" | "boolean" | "number";
+  outputFormat?: string;
+  content?: string;
   response?: any;
 }
 
