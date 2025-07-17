@@ -123,7 +123,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     async (
       publishableKey: string,
       prompts: PassagePrompt[] = [],
-      integrationId?: string,
+      integrationId?: string
     ): Promise<string> => {
       try {
         const apiUrl = config.apiUrl || DEFAULT_API_BASE_URL;
@@ -141,6 +141,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             prompts: prompts.map((p) => ({
               name: p.name,
               value: p.value,
+              outputType: p.outputType,
+              outputFormat: p.outputFormat,
             })),
           }
         );
@@ -188,7 +190,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         const token = await generateIntentToken(
           options.publishableKey,
           options.prompts || [],
-          options.integrationId,
+          options.integrationId
         );
         intentTokenRef.current = token;
         logger.debug("[PassageProvider] Initialization complete");
