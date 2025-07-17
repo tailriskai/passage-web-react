@@ -43,7 +43,6 @@ function ConnectButton() {
       await passage.initialize({
         publishableKey: "pk-test-your-publishable-key",
         integrationId: "audible", // or "kindle", "youtube", etc.
-        products: ["history"], // Data products to collect
         onConnectionComplete: (data) => {
           console.log("✅ Connection successful!", data);
           setConnectionData(data);
@@ -119,6 +118,12 @@ function AdvancedConnectFlow() {
         value:
           "What kind of book hits different for you rn? Give me the vibes ✨",
       },
+      {
+        name: "book_list",
+        value: "return a list of my books with with a description of each",
+        outputType: "json",
+        outputFormat: `{"type":"array","contentMediaType":"application/json","contentSchema":{"type":"array","items":{"type":"object","required":["title","author","description"],"properties":{"title":{"type":"string"},"author":{"type":"string"},"description":{"type":"string"}},"additionalProperties":false}}}`,
+      },
     ];
 
     try {
@@ -126,7 +131,6 @@ function AdvancedConnectFlow() {
       await passage.initialize({
         publishableKey: "pk-test-your-publishable-key",
         integrationId: "kindle",
-        products: ["history"],
         prompts: prompts,
         onConnectionComplete: (data) => {
           console.log("✅ Connection complete!", data);
@@ -213,7 +217,6 @@ Initialize Passage with your credentials and configuration.
 await passage.initialize({
   publishableKey: string;              // Your publishable key
   integrationId?: string;              // Integration type (e.g., "audible", "kindle")
-  products?: string[];                 // Data products (default: ["history"])
   prompts?: PassagePrompt[];           // Optional prompts for data collection
 
   // Callbacks
@@ -342,12 +345,6 @@ Supported integration types for `integrationId`:
 - `"youtube"` - YouTube viewing history
 - More integrations coming soon
 
-## Data Products
-
-Available data products for the `products` array:
-
-- `"history"` - User activity/reading history
-
 ## Prompts System
 
 Collect additional information from users during connection:
@@ -459,7 +456,6 @@ function ConnectFlow() {
       await passage.initialize({
         publishableKey,
         integrationId,
-        products: ["history"],
         prompts,
         onConnectionComplete: (data) => {
           console.log("✅ Connection successful!", data);

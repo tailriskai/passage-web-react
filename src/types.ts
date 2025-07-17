@@ -58,11 +58,15 @@ export interface PassageModalStyles {
 export interface PassagePrompt {
   name: string;
   value: string;
+  outputType?: "text" | "json" | "boolean" | "number";
+  outputFormat?: string;
 }
 
 export interface PassagePromptResponse {
-  key: string;
-  value: string;
+  name: string;
+  content: string;
+  outputType?: "text" | "json" | "boolean" | "number";
+  outputFormat?: string;
   response?: any;
 }
 
@@ -76,12 +80,6 @@ export interface PassageInitializeOptions {
    * Integration ID for the connection
    */
   integrationId?: string;
-
-  /**
-   * Products to request data for
-   * @default ["history"]
-   */
-  products?: string[];
 
   /**
    * Prompts to process after connection

@@ -16,7 +16,6 @@ const BasicExample: React.FC = () => {
   const [integrationId, setIntegrationId] = useState("audible");
   const [selectedIntegration, setSelectedIntegration] =
     useState<string>("audible");
-  const [products, setProducts] = useState<string[]>(["history"]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [logs, setLogs] = useState<
     Array<{
@@ -79,7 +78,6 @@ const BasicExample: React.FC = () => {
       await passage.initialize({
         publishableKey,
         integrationId: integrationId || undefined,
-        products,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
@@ -177,7 +175,6 @@ const BasicExample: React.FC = () => {
       await passage.initialize({
         publishableKey,
         integrationId: integrationId || undefined,
-        products,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
@@ -304,28 +301,6 @@ const BasicExample: React.FC = () => {
             </option>
           ))}
         </select>
-      </div>
-
-      <div className="input-group">
-        <label htmlFor="products">Products (comma-separated):</label>
-        <input
-          id="products"
-          type="text"
-          value={products.join(", ")}
-          onChange={(e) =>
-            setProducts(
-              e.target.value
-                .split(",")
-                .map((p) => p.trim())
-                .filter((p) => p.length > 0)
-            )
-          }
-          placeholder="history, transactions, profile"
-          disabled={true}
-        />
-        <small style={{ color: "#666", fontSize: "0.875rem" }}>
-          Default: history
-        </small>
       </div>
 
       <div style={{ marginBottom: "1rem" }}>

@@ -28,6 +28,7 @@ import type {
   PassagePrompt,
   ConnectionStatus,
   ConnectionUpdate,
+  PassagePromptResponse,
 } from "./types";
 
 export const PassageContext = createContext<PassageContextValue | null>(null);
@@ -105,9 +106,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   const onDataCompleteRef = useRef<
     ((data: PassageDataResult) => void) | undefined
   >(undefined);
-  const onPromptCompleteRef = useRef<((prompt: any) => void) | undefined>(
-    undefined
-  );
+  const onPromptCompleteRef = useRef<
+    ((prompt: PassagePromptResponse) => void) | undefined
+  >(undefined);
   const onExitRef = useRef<((reason?: string) => void) | undefined>(undefined);
 
   const wsManager = WebSocketManager.getInstance();
@@ -123,8 +124,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     async (
       publishableKey: string,
       prompts: PassagePrompt[] = [],
-      integrationId?: string,
-      products: string[] = ["history"]
+      integrationId?: string
     ): Promise<string> => {
       try {
         const apiUrl = config.apiUrl || DEFAULT_API_BASE_URL;
@@ -132,7 +132,6 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         const payload = {
           integrationId,
           prompts,
-          products,
         };
 
         logger.debug(
@@ -143,8 +142,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             prompts: prompts.map((p) => ({
               name: p.name,
               value: p.value,
+              outputType: p.outputType,
+              outputFormat: p.outputFormat,
             })),
-            products,
           }
         );
 
@@ -184,7 +184,6 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         publishableKey: options.publishableKey,
         hasPrompts: !!options.prompts?.length,
         promptsCount: options.prompts?.length || 0,
-        products: options.products || ["history"],
       });
 
       try {
@@ -192,8 +191,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         const token = await generateIntentToken(
           options.publishableKey,
           options.prompts || [],
-          options.integrationId,
-          options.products || ["history"]
+          options.integrationId
         );
         intentTokenRef.current = token;
         logger.debug("[PassageProvider] Initialization complete");
@@ -344,9 +342,11 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               logger.debug("[PassageProvider] Prompt completed:", singlePrompt);
 
               // Transform server response to match PassagePromptResponse interface
-              const promptResponse = {
-                key: singlePrompt.name || singlePrompt.key,
-                value: singlePrompt.result?.content || singlePrompt.value || "",
+              const promptResponse: PassagePromptResponse = {
+                name: singlePrompt.name,
+                outputType: singlePrompt.outputType,
+                outputFormat: singlePrompt.outputFormat,
+                content: singlePrompt.result?.content || "",
                 response: singlePrompt,
               };
 
