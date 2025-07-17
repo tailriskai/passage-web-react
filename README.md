@@ -119,7 +119,6 @@ function App() {
     await initialize({
       publishableKey: "your-publishable-key",
       integrationId: "your-integration-id",
-      products: ["history"], // Optional: defaults to ["history"]
       onConnectionComplete: (data) => {
         console.log("Connection successful!", data);
       },

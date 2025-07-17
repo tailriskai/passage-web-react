@@ -124,7 +124,6 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       publishableKey: string,
       prompts: PassagePrompt[] = [],
       integrationId?: string,
-      products: string[] = ["history"]
     ): Promise<string> => {
       try {
         const apiUrl = config.apiUrl || DEFAULT_API_BASE_URL;
@@ -132,7 +131,6 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         const payload = {
           integrationId,
           prompts,
-          products,
         };
 
         logger.debug(
@@ -144,7 +142,6 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               name: p.name,
               value: p.value,
             })),
-            products,
           }
         );
 
@@ -184,7 +181,6 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         publishableKey: options.publishableKey,
         hasPrompts: !!options.prompts?.length,
         promptsCount: options.prompts?.length || 0,
-        products: options.products || ["history"],
       });
 
       try {
@@ -193,7 +189,6 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           options.publishableKey,
           options.prompts || [],
           options.integrationId,
-          options.products || ["history"]
         );
         intentTokenRef.current = token;
         logger.debug("[PassageProvider] Initialization complete");
