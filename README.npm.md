@@ -118,6 +118,12 @@ function AdvancedConnectFlow() {
         value:
           "What kind of book hits different for you rn? Give me the vibes ✨",
       },
+      {
+        name: "book_list",
+        value: "return a list of my books with with a description of each",
+        outputType: "json",
+        outputFormat: `{"type":"array","contentMediaType":"application/json","contentSchema":{"type":"array","items":{"type":"object","required":["title","author","description"],"properties":{"title":{"type":"string"},"author":{"type":"string"},"description":{"type":"string"}},"additionalProperties":false}}}`,
+      },
     ];
 
     try {
