@@ -68,14 +68,34 @@ export const PassageModal: React.FC<PassageModalProps> = ({
   // Listen for dimension updates and close events from iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Only accept messages from the iframe's origin
-      if (event.origin !== new URL(baseUrl).origin) {
-        return;
-      }
+      logger.debug(
+        "[PassageModal] Received message from origin:",
+        event.origin,
+        "Expected:",
+        new URL(baseUrl).origin
+      );
 
       try {
         const data =
           typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+
+        logger.debug("[PassageModal] Message data:", data);
+
+        // Handle universal link opening from iframe (allow from any origin for universal links)
+        if (data.type === "PASSAGE_UNIVERSAL_LINK" && data.url) {
+          logger.debug(
+            "[PassageModal] Received universal link request:",
+            data.url
+          );
+          window.open(data.url, "_blank");
+          return;
+        }
+
+        // Only accept other messages from the iframe's origin
+        if (event.origin !== new URL(baseUrl).origin) {
+          logger.debug("[PassageModal] Ignoring message from different origin");
+          return;
+        }
 
         // Handle close message from iframe
         if (data.type === "PASSAGE_MODAL_CLOSE") {
