@@ -50,7 +50,7 @@ const BasicExample: React.FC = () => {
     name: "",
     value: "",
     outputType: "text",
-    outputFormat: JSON.stringify(defaultSchema, null, 2),
+    outputFormat: undefined,
   });
   const [promptResults, setPromptResults] = useState<PassagePromptResponse[]>(
     []
@@ -385,7 +385,13 @@ const BasicExample: React.FC = () => {
           >
             <select
               value={prompt.outputType}
-              onChange={(e) => updatePrompt("outputType", e.target.value)}
+              onChange={(e) => {
+                updatePrompt("outputType", e.target.value);
+                updatePrompt(
+                  "outputFormat",
+                  JSON.stringify(defaultSchema, null, 2)
+                );
+              }}
               disabled={isInitialized}
               style={{
                 padding: "0.5rem",
