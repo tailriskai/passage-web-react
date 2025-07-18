@@ -11,7 +11,7 @@ import LogDisplay from "./LogDisplay";
 const BasicExample: React.FC = () => {
   const passage = usePassage();
   const [publishableKey, setPublishableKey] = useState(
-    "pk-test-2dfb6cbf-be07-4f9b-877e-f8eaf34b2913"
+    "pk-live-0d017c4c-307e-441c-8b72-cb60f64f77f8"
   );
   const [integrationId, setIntegrationId] = useState("audible");
   const [selectedIntegration, setSelectedIntegration] =
