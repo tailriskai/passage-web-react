@@ -363,7 +363,7 @@ const BasicExample: React.FC = () => {
             />
             <input
               type="text"
-              placeholder="Prompt value (e.g., return a list of my books with with a description of ea  ch)"
+              placeholder="Prompt value (e.g., return a list of my books with with a description of each)"
               value={prompt.value}
               onChange={(e) => updatePrompt("value", e.target.value)}
               disabled={isInitialized}
