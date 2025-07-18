@@ -25,9 +25,32 @@ const BasicExample: React.FC = () => {
     }>
   >([]);
   const [loading, setLoading] = useState(false);
+
+  const defaultSchema = {
+    type: "object",
+    additionalProperties: false,
+    required: ["data"],
+    properties: {
+      data: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["title", "author", "roast"],
+          properties: {
+            title: { type: "string" },
+            author: { type: "string" },
+            roast: { type: "string" },
+          },
+        },
+      },
+    },
+  };
+
   const [prompt, setPrompt] = useState<PassagePrompt>({
     name: "",
     value: "",
+    outputType: "text",
+    outputFormat: undefined,
   });
   const [promptResults, setPromptResults] = useState<PassagePromptResponse[]>(
     []
@@ -100,7 +123,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Prompt completed: ${promptResponse.key} = ${promptResponse.value}`,
+            `🎯 Prompt completed: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -139,7 +162,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Modal prompt: ${promptResponse.key} = ${promptResponse.value}`,
+            `🎯 Modal prompt: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -197,7 +220,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Prompt completed: ${promptResponse.key} = ${promptResponse.value}`,
+            `🎯 Prompt completed: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -225,7 +248,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Modal prompt: ${promptResponse.key} = ${promptResponse.value}`,
+            `🎯 Modal prompt: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -328,7 +351,7 @@ const BasicExample: React.FC = () => {
           >
             <input
               type="text"
-              placeholder="Prompt name (e.g., user_email)"
+              placeholder="Prompt name (e.g., book_list)"
               value={prompt.name}
               onChange={(e) => updatePrompt("name", e.target.value)}
               disabled={isInitialized}
@@ -340,7 +363,7 @@ const BasicExample: React.FC = () => {
             />
             <input
               type="text"
-              placeholder="Prompt value (e.g., What is your email?)"
+              placeholder="Prompt value (e.g., return a list of my books with with a description of each)"
               value={prompt.value}
               onChange={(e) => updatePrompt("value", e.target.value)}
               disabled={isInitialized}
@@ -350,6 +373,53 @@ const BasicExample: React.FC = () => {
                 borderRadius: "4px",
               }}
             />
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "0.5rem",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <select
+              value={prompt.outputType}
+              onChange={(e) => {
+                updatePrompt("outputType", e.target.value);
+                updatePrompt(
+                  "outputFormat",
+                  JSON.stringify(defaultSchema, null, 2)
+                );
+              }}
+              disabled={isInitialized}
+              style={{
+                padding: "0.5rem",
+                border: "1px solid #e2e8f0",
+                borderRadius: "4px",
+                background: "white",
+              }}
+            >
+              <option value="text">Text</option>
+              <option value="json">JSON</option>
+            </select>
+
+            {prompt.outputType === "json" && (
+              <textarea
+                placeholder="JSON output format (e.g., { 'name': 'string', 'age': 'number' })"
+                value={prompt.outputFormat}
+                onChange={(e) => updatePrompt("outputFormat", e.target.value)}
+                disabled={isInitialized}
+                autoComplete="off"
+                style={{
+                  padding: "0.5rem",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "4px",
+                  resize: "vertical",
+                  minHeight: "60px",
+                }}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -424,7 +494,7 @@ const BasicExample: React.FC = () => {
                 marginBottom: "0.25rem",
               }}
             >
-              <strong>{result.key}:</strong> {result.value}
+              <strong>{result.name}:</strong> {result.content}
             </div>
           ))}
         </div>
