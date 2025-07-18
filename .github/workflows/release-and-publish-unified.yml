@@ -1,0 +1,164 @@
+name: Release and Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      release_notes:
+        description: "Release notes (markdown supported)"
+        required: false
+        type: string
+        default: |
+          ### What's Changed
+          - Bug fixes and improvements
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm build
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version and bump
+        id: version
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+          # Bump version using npm version (this also creates a git tag)
+          NEW_VERSION=$(npm version ${{ github.event.inputs.version_bump }} --no-git-tag-version)
+          # Remove the 'v' prefix that npm version adds
+          NEW_VERSION=${NEW_VERSION#v}
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+          echo "📦 Bumped version from $CURRENT_VERSION to $NEW_VERSION"
+
+      - name: Commit version bump
+        run: |
+          git add package.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+          git tag "v${{ steps.version.outputs.new_version }}"
+
+      - name: Push changes and tags
+        run: |
+          git push origin main
+          git push origin "v${{ steps.version.outputs.new_version }}"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.new_version }}
+          release_name: Release v${{ steps.version.outputs.new_version }}
+          body: |
+            ## Release v${{ steps.version.outputs.new_version }}
+
+            ${{ github.event.inputs.release_notes }}
+
+            ---
+
+            ## Installation
+
+            ```bash
+            npm install @getpassage/react-js@${{ steps.version.outputs.new_version }}
+            # or
+            pnpm add @getpassage/react-js@${{ steps.version.outputs.new_version }}
+            # or
+            yarn add @getpassage/react-js@${{ steps.version.outputs.new_version }}
+            ```
+          draft: false
+          prerelease: false
+
+      - name: Prepare for NPM publish
+        run: |
+          # Remove prepack/postpack scripts temporarily to avoid conflicts
+          pnpm pkg delete scripts.prepack
+          pnpm pkg delete scripts.postpack
+
+          # Copy the NPM README to be the main README
+          cp README.npm.md README.md
+
+          # Backup other README files
+          mkdir -p .readme-backup
+          mv README.npm.md .readme-backup/ || true
+          mv README.repo.md .readme-backup/ || true
+
+      - name: Publish to NPM
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Restore README files
+        if: always()
+        run: |
+          # Restore the README files
+          mv .readme-backup/* . 2>/dev/null || true
+          rm -rf .readme-backup
+
+          # Restore repo README as the default
+          cp README.repo.md README.md || true
+
+      - name: Create tarball for release asset
+        run: |
+          pnpm pack
+          # Rename to a cleaner filename
+          mv *.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./passage-web-react-${{ steps.version.outputs.new_version }}.tgz
+          asset_name: passage-web-react-${{ steps.version.outputs.new_version }}.tgz
+          asset_content_type: application/gzip
+
+      - name: Output success message
+        run: |
+          echo "✅ Successfully released and published!"
+          echo "📦 Package: @getpassage/react-js@${{ steps.version.outputs.new_version }}"
+          echo "🏷️  Git tag: v${{ steps.version.outputs.new_version }}"
+          echo "🔗 NPM: https://www.npmjs.com/package/@getpassage/react-js"
+          echo "📋 Release: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.new_version }}"

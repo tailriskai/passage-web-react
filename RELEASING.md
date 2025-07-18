@@ -1,233 +1,250 @@
 # Release Process
 
-This package uses GitHub Actions for automated releases with two separate workflows:
+This package uses a single, unified GitHub Actions workflow for streamlined releases that handles version bumping, tagging, GitHub releases, and NPM publishing all in one place.
 
-## 🚀 Automatic GitHub Packages Release
+## 🚀 Unified Release & Publish Workflow
 
-### Automatic Publishing (Main Branch)
+### How to Release
 
-Every push/merge to the `main` branch automatically:
+1. **Go to Actions tab** in your GitHub repository
+2. **Select "Release and Publish"** workflow
+3. **Click "Run workflow"**
+4. **Configure the release**:
+   - **Version bump type**: Choose `patch`, `minor`, or `major`
+   - **Release notes**: Write your changelog in markdown format
 
-- ✅ **Generates version**: `{package.json.version}-{git-hash}` (e.g., `1.0.0-abc1234`)
-- ✅ **Builds package**: Runs build process
-- ✅ **Creates GitHub release**: Marked as prerelease
-- ✅ **Publishes to GitHub Packages**: Available immediately
+### What the Workflow Does
 
-**No manual intervention required!** Just push your code to main.
+The unified workflow automatically handles everything:
 
-### Version Format
+- ✅ **Reads current version** from `package.json`
+- ✅ **Bumps version** according to semantic versioning
+- ✅ **Commits version change** to main branch
+- ✅ **Creates git tag** (e.g., `v1.0.1`)
+- ✅ **Pushes changes and tags** to repository
+- ✅ **Creates GitHub release** with your release notes
+- ✅ **Builds the package** using your build scripts
+- ✅ **Publishes to NPM** as `@getpassage/react-js`
+- ✅ **Attaches release assets** (tarball) to GitHub release
 
-- **Base version**: From `package.json` (e.g., `1.0.0`)
-- **Git hash**: Last 7 characters of commit hash (e.g., `abc1234`)
-- **Final version**: `1.0.0-abc1234`
+### Version Bumping
 
-### Installation from GitHub Packages
+The workflow uses semantic versioning:
+
+- **Patch** (0.0.7 → 0.0.8): Bug fixes, small updates
+- **Minor** (0.0.7 → 0.1.0): New features, backwards compatible
+- **Major** (0.0.7 → 1.0.0): Breaking changes
+
+## 📦 Installation
+
+After release, your package is available on NPM:
 
 ```bash
-# Latest from main branch
-npm install @tailriskai/passage-web-react@latest
+# Install latest version
+npm install @getpassage/react-js
 
-# Specific version
-npm install @tailriskai/passage-web-react@1.0.0-abc1234
+# Install specific version
+npm install @getpassage/react-js@1.0.1
+
+# Using pnpm
+pnpm add @getpassage/react-js
+
+# Using yarn
+yarn add @getpassage/react-js
 ```
 
-## 📦 Manual NPM Publishing
+## 🔧 Setup Requirements
 
-### When to Use NPM Publishing
+### GitHub Repository Secrets
 
-- ✅ **Stable releases**: Ready for production
-- ✅ **Public distribution**: Make package publicly available
-- ✅ **Semantic versioning**: Follow proper version numbers
+You need to configure one secret in your repository settings:
 
-### How to Publish to NPM
+- **`NPM_TOKEN`**: Your NPM authentication token for publishing
+  - Go to Settings → Secrets and variables → Actions
+  - Add `NPM_TOKEN` with your NPM publish token
 
-1. **Ensure GitHub release exists**:
+### Permissions
 
-   ```bash
-   # Create a proper semantic version tag
-   git tag v1.0.1
-   git push origin v1.0.1
-   ```
+The workflow uses built-in `GITHUB_TOKEN` with these permissions:
 
-2. **Run NPM Publish Workflow**:
-   - Go to Actions tab in GitHub
-   - Select "Publish to NPM" workflow
-   - Click "Run workflow"
-   - Fill in the inputs:
-     - **Version**: `1.0.1` (must match existing tag)
-     - **NPM Organization**: `@getpassage` (or leave empty)
-     - **Dry Run**: `true` (for testing first)
+- `contents: write` (for pushing commits and tags)
+- `packages: write` (for potential GitHub Packages support)
 
-3. **Verify and Publish**:
-   - First run with `dry_run: true` to test
-   - Then run with `dry_run: false` to actually publish
+## 📋 Pre-release Checklist
 
-### NPM Installation
+### Before Running the Workflow
 
-```bash
-# From NPM registry
-npm install @getpassage/web-react@1.0.1
+- [ ] All tests passing locally
+- [ ] Code reviewed and approved
+- [ ] Documentation updated
+- [ ] Breaking changes documented (if any)
+- [ ] Example app tested (if applicable)
+- [ ] Ready for production release
 
-# Latest stable from NPM
-npm install @getpassage/web-react@latest
+### Release Notes Guidelines
+
+When writing release notes, include:
+
+- **New features** added
+- **Bug fixes** implemented
+- **Breaking changes** (if any)
+- **Deprecation notices** (if any)
+- **Migration instructions** (for breaking changes)
+
+Example release notes:
+
+```markdown
+### What's Changed
+
+#### 🚀 New Features
+
+- Added dark mode support for PassageModal
+- New `onSuccess` callback option
+
+#### 🐛 Bug Fixes
+
+- Fixed authentication state not persisting
+- Resolved TypeScript type issues
+
+#### ⚠️ Breaking Changes
+
+- Renamed `config.apiKey` to `config.appId`
+- Removed deprecated `useAuth` hook
+
+#### 📚 Documentation
+
+- Updated example app with new features
+- Added migration guide for v1.0.0
 ```
 
 ## 🔄 Complete Release Flow
 
-### Development Workflow
+### Development to Production
 
-1. **Push to main** → Automatic GitHub Packages release
-2. **Test integration** → Use `@latest` from GitHub Packages
-3. **Ready for production** → Manual NPM publish
+1. **Develop and test** your changes
+2. **Merge to main branch** via pull request
+3. **Run release workflow** when ready for production
+4. **Verify release** on NPM and GitHub
+5. **Update dependent projects** as needed
 
-### Production Release Process
+### Post-Release Tasks
 
-1. **Update `package.json` version** (if needed for base version)
-2. **Create version tag**:
-   ```bash
-   git tag v1.0.1
-   git push origin v1.0.1
-   ```
-3. **Manual NPM publish** via GitHub Actions
-4. **Update release notes** in GitHub release
+- [ ] Verify package appears on [NPM](https://www.npmjs.com/package/@getpassage/react-js)
+- [ ] Test installation in a fresh project
+- [ ] Update dependent applications/examples
+- [ ] Announce release (if significant)
+- [ ] Monitor for any issues
 
-## 📋 Pre-release Checklist
+## 🛠️ Manual Release (Emergency Fallback)
 
-### Before Pushing to Main
-
-- [ ] All tests passing
-- [ ] Code reviewed and approved
-- [ ] Documentation updated
-- [ ] Example app tested (if applicable)
-- [ ] TypeScript types verified
-
-### Before NPM Publishing
-
-- [ ] GitHub Packages version tested
-- [ ] Integration tests with consuming applications
-- [ ] Release notes prepared
-- [ ] Version number follows semantic versioning
-- [ ] Breaking changes documented
-
-## 🛠️ Manual Release (Fallback)
-
-If GitHub Actions are unavailable:
-
-### GitHub Packages
-
-1. **Build and prepare**:
-
-   ```bash
-   npm ci
-   npm run build
-   npm pkg set name="@tailriskai/passage-web-react"
-   npm pkg set publishConfig.registry="https://npm.pkg.github.com"
-   ```
-
-2. **Publish**:
-   ```bash
-   npm publish
-   ```
-
-### NPM Registry
-
-1. **Prepare for NPM**:
-
-   ```bash
-   npm pkg set name="@getpassage/web-react"
-   cp README.npm.md README.md
-   ```
-
-2. **Publish**:
-   ```bash
-   npm publish --access public
-   ```
-
-## 📚 Using the Package
-
-### From GitHub Packages
-
-1. **Create `.npmrc` in your project**:
-
-   ```
-   @tailriskai:registry=https://npm.pkg.github.com
-   //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-   ```
-
-2. **Set authentication**:
-
-   ```bash
-   export NODE_AUTH_TOKEN=your_github_token_with_read_packages
-   ```
-
-3. **Install**:
-   ```bash
-   npm install @tailriskai/passage-web-react@latest
-   ```
-
-### From NPM Registry
+If GitHub Actions are unavailable, you can release manually:
 
 ```bash
-# No special configuration needed
-npm install @getpassage/web-react@latest
+# 1. Bump version
+npm version patch # or minor/major
+
+# 2. Build package
+npm run build
+
+# 3. Prepare README for NPM
+cp README.npm.md README.md
+
+# 4. Publish to NPM
+npm publish --access public
+
+# 5. Restore repo README
+cp README.repo.md README.md
+
+# 6. Push version tag
+git push origin main --tags
 ```
-
-## 🏷️ Version Numbering
-
-### Automatic Versions (GitHub Packages)
-
-- **Format**: `{base}-{hash}` (e.g., `1.0.0-abc1234`)
-- **Purpose**: Development builds, testing, CI/CD
-
-### Manual Versions (NPM)
-
-- **Patch** (1.0.x): Bug fixes, small updates
-- **Minor** (1.x.0): New features, backwards compatible
-- **Major** (x.0.0): Breaking changes
 
 ## 🎯 Best Practices
 
-### Development
+### Version Strategy
 
-- Use GitHub Packages for development and testing
-- Automatic versioning ensures unique versions per commit
-- No version conflicts in development
+- **Patch releases**: Bug fixes, security updates, small improvements
+- **Minor releases**: New features, enhancements, non-breaking changes
+- **Major releases**: Breaking changes, major rewrites, API changes
 
-### Production
+### Release Frequency
 
-- Use NPM for stable, production releases
-- Follow semantic versioning strictly
-- Test thoroughly before NPM publishing
+- **Bug fixes**: Release quickly (within days)
+- **Features**: Bundle related features together
+- **Breaking changes**: Plan carefully, provide migration guides
 
-### CI/CD Integration
+### Quality Assurance
 
-- GitHub Packages: Perfect for automated deployments
-- NPM: Use for public distribution and stable releases
+- Always test the package installation after release
+- Verify examples and documentation work with new version
+- Monitor GitHub issues for post-release problems
+
+## 📚 Workflow Details
+
+### File Changes During Release
+
+The workflow temporarily modifies files during the release process:
+
+1. **`package.json`**: Version number updated
+2. **`README.md`**: Switched to NPM version during publish
+3. **Git history**: New commit and tag created
+
+### README Management
+
+The package has multiple README files:
+
+- **`README.repo.md`**: Repository documentation (default)
+- **`README.npm.md`**: NPM package documentation
+- **`README.md`**: Active README (switches during release)
+
+### Build Process
+
+The workflow runs your existing build scripts:
+
+- `pnpm install --frozen-lockfile`
+- `pnpm build`
+- Handles `prepack`/`postpack` scripts automatically
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
-- **Version already exists**: Use dry run first, check existing versions
-- **Authentication failed**: Verify `NPM_TOKEN` secret is set
-- **Tag doesn't exist**: Create proper git tag before NPM publishing
+**"Version already exists"**
 
-### Workflow Failures
+- Check if the version is already published on NPM
+- Verify the current version in `package.json`
+
+**"NPM_TOKEN authentication failed"**
+
+- Verify the token is valid and has publish permissions
+- Check the token is correctly set in repository secrets
+
+**"Git push failed"**
+
+- Ensure repository has write permissions
+- Check for branch protection rules
+
+**"Build failed"**
+
+- Verify all dependencies are in `package.json`
+- Test build process locally first
+
+### Getting Help
 
 - Check GitHub Actions logs for detailed error messages
-- Verify all required secrets are configured
-- Ensure package.json format is valid
+- Verify all secrets are properly configured
+- Test the build process locally before releasing
 
 ## 📖 Additional Resources
 
-- [GitHub Packages Documentation](https://docs.github.com/en/packages)
-- [NPM Publishing Guide](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry)
 - [Semantic Versioning](https://semver.org/)
+- [NPM Publishing Guide](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
 
-## Browser Support Notes
+## Browser Support
 
 This package supports modern browsers with React 16.8+ (Hooks support). When releasing:
 
 - Test in major browsers (Chrome, Firefox, Safari, Edge)
 - Note any browser-specific changes in release notes
-- Ensure peer dependencies are compatible
+- Ensure peer dependencies are compatible with target environments
