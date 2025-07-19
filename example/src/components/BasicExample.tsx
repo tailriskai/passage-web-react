@@ -16,6 +16,9 @@ const BasicExample: React.FC = () => {
   const [integrationId, setIntegrationId] = useState("audible");
   const [selectedIntegration, setSelectedIntegration] =
     useState<string>("audible");
+  const [presentationStyle, setPresentationStyle] = useState<"modal" | "embed">(
+    "modal"
+  );
   const [isInitialized, setIsInitialized] = useState(false);
   const [logs, setLogs] = useState<
     Array<{
@@ -143,35 +146,48 @@ const BasicExample: React.FC = () => {
   };
 
   const handleOpen = async () => {
-    addLog("Opening Passage modal...");
+    addLog(`Opening Passage ${presentationStyle}...`);
 
     try {
       // Disconnect any existing WebSocket connection before opening
       addLog("🔌 Disconnecting existing WebSocket connection...");
       await passage.disconnect();
 
-      await passage.open({
+      const openOptions: any = {
+        presentationStyle,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
-            `✅ Modal: Connection complete! Status: ${data.status}`,
+            `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
             "success"
           );
         },
         onError: (error: PassageErrorData) => {
-          addLog(`❌ Modal: Error occurred: ${error.error}`, "error");
+          addLog(
+            `❌ ${presentationStyle}: Error occurred: ${error.error}`,
+            "error"
+          );
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Modal prompt: ${promptResponse.name} = ${promptResponse.content}`,
+            `🎯 ${presentationStyle} prompt: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
         },
-      });
+      };
 
-      addLog("🚀 Passage modal opened successfully!");
+      // Add container for embed mode
+      if (presentationStyle === "embed") {
+        const embedContainer = document.querySelector("#embed-container");
+        console.log("[BasicExample] Embed container found:", embedContainer);
+        openOptions.container = embedContainer || "#embed-container";
+      }
+
+      await passage.open(openOptions);
+
+      addLog(`🚀 Passage ${presentationStyle} opened successfully!`);
     } catch (error) {
-      addLog(`❌ Failed to open modal: ${error}`, "error");
+      addLog(`❌ Failed to open ${presentationStyle}: ${error}`, "error");
     }
   };
 
@@ -234,26 +250,43 @@ const BasicExample: React.FC = () => {
       addLog("✅ Initialization complete!", "success");
 
       // Step 2: Open modal (add small delay to ensure state is updated)
-      addLog("2️⃣ Opening Passage modal...");
+      addLog(`2️⃣ Opening Passage ${presentationStyle}...`);
       await new Promise((resolve) => setTimeout(resolve, 100)); // Allow state to update
-      await passage.open({
+
+      const openOptions: any = {
+        presentationStyle,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
-            `✅ Modal: Connection complete! Status: ${data.status}`,
+            `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
             "success"
           );
         },
         onError: (error: PassageErrorData) => {
-          addLog(`❌ Modal: Error occurred: ${error.error}`, "error");
+          addLog(
+            `❌ ${presentationStyle}: Error occurred: ${error.error}`,
+            "error"
+          );
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Modal prompt: ${promptResponse.name} = ${promptResponse.content}`,
+            `🎯 ${presentationStyle} prompt: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
         },
-      });
+      };
+
+      // Add container for embed mode
+      if (presentationStyle === "embed") {
+        const embedContainer = document.querySelector("#embed-container");
+        console.log(
+          "[BasicExample] Initialize&Open - Embed container found:",
+          embedContainer
+        );
+        openOptions.container = embedContainer || "#embed-container";
+      }
+
+      await passage.open(openOptions);
 
       addLog("🎉 Initialize and Open completed successfully!", "success");
     } catch (error) {
@@ -280,246 +313,300 @@ const BasicExample: React.FC = () => {
   };
 
   return (
-    <div className="example-card">
-      <h3>🚀 Basic Usage with Prompts</h3>
-      <p>
-        Initialize with your publishable key and optionally configure a prompt
-        for data collection.
-      </p>
+    <>
+      <div className="example-card">
+        <h3>🚀 Basic Usage with Prompts</h3>
+        <p>
+          Initialize with your publishable key and optionally configure a prompt
+          for data collection. Choose between modal or embedded presentation.
+        </p>
+        <div className="input-group">
+          <label htmlFor="basic-publishable-key">Publishable Key:</label>
+          <input
+            id="basic-publishable-key"
+            type="text"
+            value={publishableKey}
+            onChange={(e) => setPublishableKey(e.target.value)}
+            placeholder="Enter your publishable key"
+            disabled={isInitialized}
+          />
+        </div>
 
-      <div className="input-group">
-        <label htmlFor="basic-publishable-key">Publishable Key:</label>
-        <input
-          id="basic-publishable-key"
-          type="text"
-          value={publishableKey}
-          onChange={(e) => setPublishableKey(e.target.value)}
-          placeholder="Enter your publishable key"
-          disabled={isInitialized}
-        />
-      </div>
-
-      <div className="input-group">
-        <label htmlFor="integration-select">Integration ID Type:</label>
-        <select
-          id="integration-select"
-          value={selectedIntegration}
-          onChange={(e) => {
-            setSelectedIntegration(e.target.value);
-            setIntegrationId(e.target.value);
-          }}
-          disabled={isInitialized}
-          style={{
-            padding: "0.5rem",
-            border: "1px solid #e2e8f0",
-            borderRadius: "4px",
-            background: "white",
-            width: "100%",
-          }}
-        >
-          <option value="">Select an integrationid type</option>
-          {integrationOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div style={{ marginBottom: "1rem" }}>
-        <label
-          style={{ fontWeight: 600, marginBottom: "0.5rem", display: "block" }}
-        >
-          Optional Prompt Configuration:
-        </label>
-
-        <div
-          style={{
-            border: "1px solid #e2e8f0",
-            borderRadius: "8px",
-            padding: "1rem",
-            background: "#f9fafb",
-          }}
-        >
-          <div
+        <div className="input-group">
+          <label htmlFor="integration-select">Integration ID Type:</label>
+          <select
+            id="integration-select"
+            value={selectedIntegration}
+            onChange={(e) => {
+              setSelectedIntegration(e.target.value);
+              setIntegrationId(e.target.value);
+            }}
+            disabled={isInitialized}
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "0.5rem",
-              marginBottom: "0.5rem",
+              padding: "0.5rem",
+              border: "1px solid #e2e8f0",
+              borderRadius: "4px",
+              background: "white",
+              width: "100%",
             }}
           >
-            <input
-              type="text"
-              placeholder="Prompt name (e.g., book_list)"
-              value={prompt.name}
-              onChange={(e) => updatePrompt("name", e.target.value)}
-              disabled={isInitialized}
-              style={{
-                padding: "0.5rem",
-                border: "1px solid #e2e8f0",
-                borderRadius: "4px",
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Prompt value (e.g., return a list of my books with with a description of each)"
-              value={prompt.value}
-              onChange={(e) => updatePrompt("value", e.target.value)}
-              disabled={isInitialized}
-              style={{
-                padding: "0.5rem",
-                border: "1px solid #e2e8f0",
-                borderRadius: "4px",
-              }}
-            />
-          </div>
+            <option value="">Select an integrationid type</option>
+            {integrationOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="input-group">
+          <label htmlFor="presentation-select">Presentation Mode:</label>
+          <select
+            id="presentation-select"
+            value={presentationStyle}
+            onChange={(e) =>
+              setPresentationStyle(e.target.value as "modal" | "embed")
+            }
+            style={{
+              padding: "0.5rem",
+              border: "1px solid #e2e8f0",
+              borderRadius: "4px",
+              background: "white",
+              width: "100%",
+            }}
+          >
+            <option value="modal">Modal</option>
+            <option value="embed">Embed</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: "1rem" }}>
+          <label
+            style={{
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+              display: "block",
+            }}
+          >
+            Optional Prompt Configuration:
+          </label>
 
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "0.5rem",
-              marginBottom: "0.5rem",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              padding: "1rem",
+              background: "#f9fafb",
             }}
           >
-            <select
-              value={prompt.outputType}
-              onChange={(e) => {
-                updatePrompt("outputType", e.target.value);
-                updatePrompt(
-                  "outputFormat",
-                  JSON.stringify(defaultSchema, null, 2)
-                );
-              }}
-              disabled={isInitialized}
+            <div
               style={{
-                padding: "0.5rem",
-                border: "1px solid #e2e8f0",
-                borderRadius: "4px",
-                background: "white",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "0.5rem",
+                marginBottom: "0.5rem",
               }}
             >
-              <option value="text">Text</option>
-              <option value="json">JSON</option>
-            </select>
-
-            {prompt.outputType === "json" && (
-              <textarea
-                placeholder="JSON output format (e.g., { 'name': 'string', 'age': 'number' })"
-                value={prompt.outputFormat}
-                onChange={(e) => updatePrompt("outputFormat", e.target.value)}
+              <input
+                type="text"
+                placeholder="Prompt name (e.g., book_list)"
+                value={prompt.name}
+                onChange={(e) => updatePrompt("name", e.target.value)}
                 disabled={isInitialized}
-                autoComplete="off"
                 style={{
                   padding: "0.5rem",
                   border: "1px solid #e2e8f0",
                   borderRadius: "4px",
-                  resize: "vertical",
-                  minHeight: "60px",
                 }}
               />
-            )}
-          </div>
-        </div>
-      </div>
+              <input
+                type="text"
+                placeholder="Prompt value (e.g., return a list of my books with with a description of each)"
+                value={prompt.value}
+                onChange={(e) => updatePrompt("value", e.target.value)}
+                disabled={isInitialized}
+                style={{
+                  padding: "0.5rem",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "4px",
+                }}
+              />
+            </div>
 
-      <div style={{ marginBottom: "1rem" }}>
-        <button
-          className="button"
-          onClick={handleInitialize}
-          disabled={loading || isInitialized}
-        >
-          {loading
-            ? "Initializing..."
-            : isInitialized
-              ? "✅ Initialized"
-              : "1. Initialize"}
-        </button>
-
-        <button
-          className="button"
-          onClick={handleOpen}
-          disabled={!isInitialized}
-        >
-          2. Open Modal
-        </button>
-
-        <button
-          className="button"
-          onClick={handleInitializeAndOpen}
-          disabled={loading}
-          style={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            border: "none",
-            color: "white",
-            fontWeight: "600",
-          }}
-        >
-          {loading ? "🚀 Processing..." : "🚀 Initialize & Open"}
-        </button>
-
-        <button
-          className="button secondary"
-          onClick={handleGetData}
-          disabled={!isInitialized}
-        >
-          Get Data
-        </button>
-
-        <button
-          className="button secondary"
-          onClick={handleReset}
-          style={{ marginLeft: "auto" }}
-        >
-          🔄 Reset
-        </button>
-      </div>
-
-      {promptResults.length > 0 && (
-        <div
-          className="status-display success"
-          style={{ marginBottom: "1rem" }}
-        >
-          <h4 style={{ marginBottom: "0.5rem" }}>
-            📊 Collected Prompt Results:
-          </h4>
-          {promptResults.map((result, index) => (
             <div
-              key={index}
               style={{
-                background: "rgba(255,255,255,0.5)",
-                padding: "0.5rem",
-                borderRadius: "4px",
-                marginBottom: "0.25rem",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "0.5rem",
+                marginBottom: "0.5rem",
               }}
             >
-              <strong>{result.name}:</strong> {result.content}
-            </div>
-          ))}
-        </div>
-      )}
+              <select
+                value={prompt.outputType}
+                onChange={(e) => {
+                  updatePrompt("outputType", e.target.value);
+                  updatePrompt(
+                    "outputFormat",
+                    JSON.stringify(defaultSchema, null, 2)
+                  );
+                }}
+                disabled={isInitialized}
+                style={{
+                  padding: "0.5rem",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "4px",
+                  background: "white",
+                }}
+              >
+                <option value="text">Text</option>
+                <option value="json">JSON</option>
+              </select>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1rem",
-        }}
-      >
-        <span style={{ fontWeight: 600 }}>Activity Log:</span>
-        <button
-          className="button secondary"
-          onClick={clearLogs}
-          style={{ padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+              {prompt.outputType === "json" && (
+                <textarea
+                  placeholder="JSON output format (e.g., { 'name': 'string', 'age': 'number' })"
+                  value={prompt.outputFormat}
+                  onChange={(e) => updatePrompt("outputFormat", e.target.value)}
+                  disabled={isInitialized}
+                  autoComplete="off"
+                  style={{
+                    padding: "0.5rem",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "4px",
+                    resize: "vertical",
+                    minHeight: "60px",
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "1rem" }}>
+          <button
+            className="button"
+            onClick={handleInitialize}
+            disabled={loading || isInitialized}
+          >
+            {loading
+              ? "Initializing..."
+              : isInitialized
+                ? "✅ Initialized"
+                : "1. Initialize"}
+          </button>
+
+          <button
+            className="button"
+            onClick={handleOpen}
+            disabled={!isInitialized}
+          >
+            2. Open {presentationStyle === "modal" ? "Modal" : "Embed"}
+          </button>
+
+          <button
+            className="button"
+            onClick={handleInitializeAndOpen}
+            disabled={loading}
+            style={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              border: "none",
+              color: "white",
+              fontWeight: "600",
+            }}
+          >
+            {loading
+              ? "🚀 Processing..."
+              : `🚀 Initialize & Open ${presentationStyle === "modal" ? "Modal" : "Embed"}`}
+          </button>
+
+          <button
+            className="button secondary"
+            onClick={handleGetData}
+            disabled={!isInitialized}
+          >
+            Get Data
+          </button>
+
+          <button
+            className="button secondary"
+            onClick={handleReset}
+            style={{ marginLeft: "auto" }}
+          >
+            🔄 Reset
+          </button>
+        </div>
+
+        {promptResults.length > 0 && (
+          <div
+            className="status-display success"
+            style={{ marginBottom: "1rem" }}
+          >
+            <h4 style={{ marginBottom: "0.5rem" }}>
+              📊 Collected Prompt Results:
+            </h4>
+            {promptResults.map((result, index) => (
+              <div
+                key={index}
+                style={{
+                  background: "rgba(255,255,255,0.5)",
+                  padding: "0.5rem",
+                  borderRadius: "4px",
+                  marginBottom: "0.25rem",
+                }}
+              >
+                <strong>{result.name}:</strong> {result.content}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+          }}
         >
-          Clear
-        </button>
+          <span style={{ fontWeight: 600 }}>Activity Log:</span>
+          <button
+            className="button secondary"
+            onClick={clearLogs}
+            style={{ padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+          >
+            Clear
+          </button>
+        </div>
+
+        <LogDisplay logs={logs} />
       </div>
 
-      <LogDisplay logs={logs} />
-    </div>
+      {/* Embed Container as separate example card */}
+      {presentationStyle === "embed" && (
+        <div className="example-card">
+          <h3>📱 Embed Container</h3>
+          <p>
+            The Passage flow will be embedded in this container when you open
+            it.
+          </p>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: "1rem",
+            }}
+          >
+            <div>
+              <div style={{ marginBottom: "0.5rem", textAlign: "center" }}>
+                <label style={{ fontWeight: 600, color: "#2d3748" }}></label>
+              </div>
+              <div id="embed-container" className="embed-container"></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

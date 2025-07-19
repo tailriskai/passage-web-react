@@ -1,5 +1,4 @@
 import BasicExample from "./components/BasicExample";
-import DirectTokenExample from "./components/DirectTokenExample";
 
 function App() {
   return (
@@ -13,7 +12,6 @@ function App() {
 
       <div className="examples-grid">
         <BasicExample />
-        <DirectTokenExample />
       </div>
 
       <footer style={{ textAlign: "center", color: "white", opacity: 0.8 }}>

@@ -185,14 +185,11 @@ export const PassageModal: React.FC<PassageModalProps> = ({
         animate="visible"
         exit="exit"
         style={{
-          width: `${iframeWidth}px`, // Dynamic width based on iframe content
-          height: `${iframeHeight}px`, // Dynamic height based on iframe content
-          maxWidth: "min(90vw, 600px)", // Responsive max width
-          maxHeight: "min(90vh, 800px)", // Responsive max height
+          width: "100%",
+          height: "100%",
           borderRadius: "12px",
           overflow: "hidden",
           backgroundColor: "#FFFFFF",
-          transition: "width 0.3s ease-out, height 0.3s ease-out", // Smooth dimension transitions
           ...mergedStyles.content,
         }}
       >

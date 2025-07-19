@@ -41,9 +41,12 @@ body {
 
 .examples-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 2rem;
   margin-bottom: 3rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .example-card {
@@ -192,10 +195,13 @@ body {
 .embed-container {
   border: 2px dashed #cbd5e0;
   border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0;
-  min-height: 400px;
+  padding: 0;
+  margin: 0;
+  width: 400px;
+  height: 700px;
   background: #f9fafb;
+  position: relative;
+  overflow: hidden;
 }
 
 .embed-placeholder {
@@ -203,8 +209,12 @@ body {
   align-items: center;
   justify-content: center;
   height: 100%;
+  width: 100%;
   color: #718096;
   font-style: italic;
+  text-align: center;
+  padding: 1rem;
+  box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
@@ -223,5 +233,11 @@ body {
 
   .example-card {
     padding: 1.5rem;
+  }
+
+  .embed-container {
+    width: 100%;
+    max-width: 350px;
+    height: 500px;
   }
 }
