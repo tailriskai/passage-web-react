@@ -72,7 +72,7 @@ const DirectTokenExample: React.FC = () => {
         },
         onPromptComplete: (prompt) => {
           addLog(
-            `🎯 Direct: Prompt completed: ${prompt.key} = ${prompt.value}`,
+            `🎯 Direct: Prompt completed: ${prompt.name} = ${prompt.content}`,
             "success"
           );
         },

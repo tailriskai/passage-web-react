@@ -100,7 +100,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Prompt completed: ${promptResponse.key} = ${promptResponse.value}`,
+            `🎯 Prompt completed: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -139,7 +139,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Modal prompt: ${promptResponse.key} = ${promptResponse.value}`,
+            `🎯 Modal prompt: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -197,7 +197,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Prompt completed: ${promptResponse.key} = ${promptResponse.value}`,
+            `🎯 Prompt completed: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -225,7 +225,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Modal prompt: ${promptResponse.key} = ${promptResponse.value}`,
+            `🎯 Modal prompt: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -249,6 +249,10 @@ const BasicExample: React.FC = () => {
     addLog("Retrieving session data...");
     const data = await passage.getData();
     addLog(`📊 Session data: ${JSON.stringify(data, null, 2)}`, "success");
+    if (data.length > 0) {
+      const lastResult = data[0];
+      setPromptResults(lastResult.prompts || []);
+    }
   };
 
   const clearLogs = () => {
@@ -389,11 +393,7 @@ const BasicExample: React.FC = () => {
           {loading ? "🚀 Processing..." : "🚀 Initialize & Open"}
         </button>
 
-        <button
-          className="button secondary"
-          onClick={handleGetData}
-          disabled={!isInitialized}
-        >
+        <button className="button secondary" onClick={handleGetData}>
           Get Data
         </button>
 
@@ -424,7 +424,7 @@ const BasicExample: React.FC = () => {
                 marginBottom: "0.25rem",
               }}
             >
-              <strong>{result.key}:</strong> {result.value}
+              <strong>{result.name}:</strong> {result.content}
             </div>
           ))}
         </div>

@@ -151,12 +151,9 @@ export interface PassageDataResult {
   data?: any;
 
   /**
-   * Prompts and their results
+   * Prompts and their result
    */
-  prompts?: Array<{
-    prompt: string;
-    results: string;
-  }>;
+  prompts?: Array<PassagePromptResponse>;
 }
 
 export interface PassageSuccessData {
@@ -206,6 +203,7 @@ export interface ConnectionUpdate {
   status: ConnectionStatus;
   data?: any;
   promptResults: {
+    name: string;
     promptId: string;
     status: ConnectionPromptResultStatus;
     result: string;
@@ -217,7 +215,7 @@ export interface PassageContextValue {
   open: (options?: PassageOpenOptions) => Promise<void>;
   close: () => Promise<void>;
   disconnect: () => Promise<void>;
-  getData: () => Promise<PassageDataResult>;
+  getData: () => Promise<PassageDataResult[]>;
 }
 
 export interface StatusUpdateMessage {

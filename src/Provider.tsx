@@ -36,7 +36,10 @@ export const PassageContext = createContext<PassageContextValue | null>(null);
 // LocalStorage helper functions
 const getStoredDataResults = (): Array<{
   intentToken: string;
-  data: any;
+  data: {
+    data: any;
+    prompts: PassagePromptResponse[];
+  };
   timestamp: string;
 }> => {
   try {
@@ -70,6 +73,30 @@ const storeDataResult = (intentToken: string, data: any): void => {
     );
   } catch (error) {
     logger.error("[PassageProvider] Failed to store data result:", error);
+  }
+};
+
+const storePromptResult = (
+  intentToken: string,
+  promptResult: PassagePromptResponse
+): void => {
+  try {
+    const existing = getStoredDataResults();
+    const prompts =
+      existing.find((p) => p.intentToken === intentToken)?.data.prompts || [];
+    const prompt = prompts.find((p: any) => p.name === promptResult.name);
+    if (prompt) {
+      prompt.content = promptResult.content;
+      prompt.outputType = promptResult.outputType;
+      prompt.outputFormat = promptResult.outputFormat;
+      prompt.response = promptResult.response;
+      prompt.name = promptResult.name;
+    }
+
+    // Update the localStorage with the updated data
+    localStorage.setItem(PASSAGE_DATA_RESULTS_KEY, JSON.stringify(existing));
+  } catch (error) {
+    logger.error("[PassageProvider] Failed to store prompt result:", error);
   }
 };
 
@@ -285,8 +312,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             const sessionDataResult: PassageDataResult = {
               data: connection.data,
               prompts: connection.promptResults.map((promptResult) => ({
-                prompt: promptResult.promptId,
-                results: promptResult.result,
+                name: promptResult.name,
+                content: promptResult.result,
+                response: promptResult.result,
               })),
             };
             setSessionData(sessionDataResult);
@@ -349,6 +377,10 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
                 content: singlePrompt.result?.content || "",
                 response: singlePrompt,
               };
+
+              if (intentTokenRef.current) {
+                storePromptResult(intentTokenRef.current, promptResponse);
+              }
 
               onPromptCompleteRef.current?.(promptResponse);
             }
@@ -640,7 +672,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   }, []);
 
   // Get data method
-  const getData = useCallback(async (): Promise<PassageDataResult> => {
+  const getData = useCallback(async (): Promise<PassageDataResult[]> => {
     // Get stored data from localStorage
     const storedResults = getStoredDataResults();
 
@@ -650,24 +682,32 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         storedResults
       );
       // Return the stored results in the expected format
-      return {
-        data: storedResults,
-        prompts: [],
-      };
+      return storedResults.map((result) => ({
+        data: result.data.data,
+        prompts: result.data.prompts.map((prompt) => ({
+          name: prompt.name,
+          content: prompt.content,
+          outputType: prompt.outputType,
+          outputFormat: prompt.outputFormat,
+          response: prompt.response,
+        })),
+      }));
     }
 
     // If no stored data and we have session data, return session data
     if (sessionData) {
       logger.debug("[PassageProvider] Returning cached session data");
-      return sessionData;
+      return [sessionData];
     }
 
     // If no data available, return empty result
     logger.debug("[PassageProvider] No data available");
-    return {
-      data: null,
-      prompts: [],
-    };
+    return [
+      {
+        data: null,
+        prompts: [],
+      },
+    ];
   }, [sessionData]);
 
   const contextValue: PassageContextValue = {
