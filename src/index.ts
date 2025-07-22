@@ -15,6 +15,7 @@ export type {
   PassagePrompt,
   PassagePromptResponse,
   PassageDataResult,
+  PassageStoredDataResult,
   PassageSuccessData,
   PassageErrorData,
   PassageContextValue,

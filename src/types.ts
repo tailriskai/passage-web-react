@@ -156,6 +156,18 @@ export interface PassageDataResult {
   prompts?: Array<PassagePromptResponse>;
 }
 
+export interface PassageStoredDataResult extends PassageDataResult {
+  /**
+   * The intent token for this connection session
+   */
+  intentToken?: string;
+
+  /**
+   * When this data was collected
+   */
+  timestamp?: string;
+}
+
 export interface PassageSuccessData {
   connectionId?: string;
   status?: ConnectionStatus;
@@ -215,7 +227,7 @@ export interface PassageContextValue {
   open: (options?: PassageOpenOptions) => Promise<void>;
   close: () => Promise<void>;
   disconnect: () => Promise<void>;
-  getData: () => Promise<PassageDataResult[]>;
+  getData: () => Promise<PassageStoredDataResult[]>;
 }
 
 export interface StatusUpdateMessage {

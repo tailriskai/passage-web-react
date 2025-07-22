@@ -83,6 +83,16 @@ function ConnectButton() {
 }
 ```
 
+## Data Persistence
+
+Passage automatically stores successful connection data in localStorage, including:
+
+- Raw account data (user's books, playlists, etc.)
+- Prompt responses from users
+- Connection metadata and timestamps
+
+This data persists across browser sessions and can be retrieved using the `getData()` method, making it easy to build features that work with previously collected user data without requiring users to reconnect every time.
+
 ## Advanced Usage with Prompts
 
 Collect additional data from users during the connection process:
@@ -254,10 +264,110 @@ await passage.disconnect();
 
 #### getData()
 
-Get stored session data.
+Retrieve stored connection data from previous sessions. Data is automatically persisted to localStorage and remains available across browser sessions.
 
 ```tsx
-const data = await passage.getData();
+const dataResults = await passage.getData();
+```
+
+**Returns:** `Promise<PassageStoredDataResult[]>` - Array of stored data results with metadata
+
+**Data Structure:**
+
+```tsx
+interface PassageStoredDataResult extends PassageDataResult {
+  intentToken?: string; // Connection session identifier (if available)
+  timestamp?: string; // When the data was collected (ISO string, if available)
+  data?: any[]; // Raw connection data (user's account data)
+  prompts?: PassagePromptResponse[]; // Responses to prompts
+}
+
+interface PassagePromptResponse {
+  name: string; // Prompt identifier
+  content: string; // User's response content
+  outputType?: "text" | "json" | "boolean" | "number";
+  outputFormat?: string;
+  response?: any; // Full response object
+}
+```
+
+**Behavior:**
+
+- Returns data from previous successful connections stored in localStorage with metadata
+- Each result may include `intentToken` (session ID) and `timestamp` (when collected) if available
+- `intentToken` and `timestamp` may be undefined for older data or edge cases
+- Falls back to current session data if no stored data exists
+- Returns array with empty data structure if no data is available
+- Most recent connections appear first in the array
+
+## Data Persistence and Retrieval
+
+Passage automatically stores connection data in localStorage, making it available across browser sessions. Use `getData()` to access previously collected user data.
+
+### Example: Displaying Stored Data
+
+```tsx
+import React, { useState, useEffect } from "react";
+import { usePassage, PassageStoredDataResult } from "@getpassage/react-js";
+
+function UserDataDisplay() {
+  const passage = usePassage();
+  const [storedData, setStoredData] = useState<PassageStoredDataResult[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const data = await passage.getData();
+      setStoredData(data);
+    };
+    loadData();
+  }, [passage]);
+
+  if (storedData.length === 0) {
+    return <p>No stored data found. Connect an account first.</p>;
+  }
+
+  return (
+    <div>
+      <h3>Your Connected Data</h3>
+      {storedData.map((result, index) => (
+        <div
+          key={index}
+          style={{
+            border: "1px solid #ccc",
+            padding: "15px",
+            margin: "10px 0",
+          }}
+        >
+          <h4>Connection #{index + 1}</h4>
+
+          {/* Display account data */}
+          {result.data && result.data.length > 0 && (
+            <div>
+              <h5>Data:</h5>
+              {result.data.map((item, i) => (
+                <div key={i}>
+                  <pre>{JSON.stringify(item, null, 2)}</pre>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Display prompts */}
+          {result.prompts && result.prompts.length > 0 && (
+            <div>
+              <h5>Prompts:</h5>
+              {result.prompts.map((prompt, i) => (
+                <div key={i}>
+                  <strong>{prompt.name}:</strong> {prompt.content}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 ```
 
 ## Callbacks Reference
@@ -415,13 +525,15 @@ Override default styles with these CSS classes:
 Here's a full implementation with all features:
 
 ```tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   PassageProvider,
   usePassage,
   PassagePrompt,
   PassagePromptResponse,
   PassageSuccessData,
+  PassageDataResult,
+  PassageStoredDataResult,
 } from "@getpassage/react-js";
 
 function ConnectFlow() {
@@ -571,6 +683,7 @@ import type {
   PassageSuccessData,
   PassageErrorData,
   PassageDataResult,
+  PassageStoredDataResult,
   ConnectionStatus,
 } from "@getpassage/react-js";
 ```

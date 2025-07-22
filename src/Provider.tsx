@@ -23,6 +23,7 @@ import type {
   PassageInitializeOptions,
   PassageOpenOptions,
   PassageDataResult,
+  PassageStoredDataResult,
   PassageSuccessData,
   PassageErrorData,
   PassagePrompt,
@@ -672,7 +673,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   }, []);
 
   // Get data method
-  const getData = useCallback(async (): Promise<PassageDataResult[]> => {
+  const getData = useCallback(async (): Promise<PassageStoredDataResult[]> => {
     // Get stored data from localStorage
     const storedResults = getStoredDataResults();
 
@@ -681,8 +682,10 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         "[PassageProvider] Returning stored data results:",
         storedResults
       );
-      // Return the stored results in the expected format
+      // Return the stored results with metadata
       return storedResults.map((result) => ({
+        intentToken: result.intentToken,
+        timestamp: result.timestamp,
         data: result.data.data,
         prompts: result.data.prompts.map((prompt) => ({
           name: prompt.name,
@@ -694,13 +697,20 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       }));
     }
 
-    // If no stored data and we have session data, return session data
+    // If no stored data and we have session data, return session data with current intent token
     if (sessionData) {
       logger.debug("[PassageProvider] Returning cached session data");
-      return [sessionData];
+      return [
+        {
+          intentToken: intentTokenRef.current || "current-session",
+          timestamp: new Date().toISOString(),
+          data: sessionData.data,
+          prompts: sessionData.prompts || [],
+        },
+      ];
     }
 
-    // If no data available, return empty result
+    // If no data available, return empty array
     logger.debug("[PassageProvider] No data available");
     return [
       {
