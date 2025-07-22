@@ -718,22 +718,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     getData,
   };
 
-  // Render embedded content
-  useEffect(() => {
-    if (presentationStyle === "embed" && container && isOpen) {
-      logger.debug("[PassageProvider] Setting up embed portal");
-      // Create a div for React portal if it doesn't exist
-      let portalDiv = container.querySelector(
-        ".passage-embed-portal"
-      ) as HTMLDivElement;
-      if (!portalDiv) {
-        portalDiv = document.createElement("div");
-        portalDiv.className = "passage-embed-portal";
-        container.appendChild(portalDiv);
-        logger.debug("[PassageProvider] Created embed portal div");
-      }
-    }
-  }, [presentationStyle, container, isOpen]);
+  // No longer needed - we'll use React Portal directly
 
   return (
     <PassageContext.Provider value={contextValue}>
@@ -755,9 +740,12 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           document.body
         )}
 
-      {/* For embed mode, render inline */}
-      {presentationStyle === "embed" && container && isOpen && (
-        <div className="passage-embed-container">
+      {/* For embed mode, render using React Portal into container */}
+      {presentationStyle === "embed" &&
+        container &&
+        isOpen &&
+        typeof window !== "undefined" &&
+        ReactDOM.createPortal(
           <PassageModal
             isOpen={isOpen}
             intentToken={intentTokenRef.current}
@@ -766,9 +754,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             onClose={close}
             customStyles={config.customStyles}
             presentationStyle="embed"
-          />
-        </div>
-      )}
+          />,
+          container
+        )}
     </PassageContext.Provider>
   );
 };
