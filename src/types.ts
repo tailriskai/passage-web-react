@@ -148,7 +148,7 @@ export interface PassageDataResult {
   /**
    * The data from the connection
    */
-  data?: any;
+  data?: any[];
 
   /**
    * Prompts and their result

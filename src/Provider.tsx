@@ -704,7 +704,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     logger.debug("[PassageProvider] No data available");
     return [
       {
-        data: null,
+        data: [],
         prompts: [],
       },
     ];
