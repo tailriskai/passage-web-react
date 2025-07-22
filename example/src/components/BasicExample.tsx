@@ -306,6 +306,10 @@ const BasicExample: React.FC = () => {
     addLog("Retrieving session data...");
     const data = await passage.getData();
     addLog(`📊 Session data: ${JSON.stringify(data, null, 2)}`, "success");
+    if (data.length > 0) {
+      const lastResult = data[0];
+      setPromptResults(lastResult.prompts || []);
+    }
   };
 
   const clearLogs = () => {
@@ -520,11 +524,7 @@ const BasicExample: React.FC = () => {
               : `🚀 Initialize & Open ${presentationStyle === "modal" ? "Modal" : "Embed"}`}
           </button>
 
-          <button
-            className="button secondary"
-            onClick={handleGetData}
-            disabled={!isInitialized}
-          >
+          <button className="button secondary" onClick={handleGetData}>
             Get Data
           </button>
 
