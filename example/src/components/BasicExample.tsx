@@ -170,7 +170,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Modal prompt: ${promptResponse.name} = ${promptResponse.content}`,
+            `🎯 ${presentationStyle} prompt: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -270,7 +270,7 @@ const BasicExample: React.FC = () => {
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
-            `🎯 Modal prompt: ${promptResponse.name} = ${promptResponse.content}`,
+            `🎯 ${presentationStyle} prompt: ${promptResponse.name} = ${promptResponse.content}`,
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
@@ -524,9 +524,9 @@ const BasicExample: React.FC = () => {
               : `🚀 Initialize & Open ${presentationStyle === "modal" ? "Modal" : "Embed"}`}
           </button>
 
-        <button className="button secondary" onClick={handleGetData}>
-          Get Data
-        </button>
+          <button className="button secondary" onClick={handleGetData}>
+            Get Data
+          </button>
 
           <button
             className="button secondary"
