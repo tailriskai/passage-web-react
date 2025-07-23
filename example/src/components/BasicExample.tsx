@@ -13,9 +13,9 @@ const BasicExample: React.FC = () => {
   const [publishableKey, setPublishableKey] = useState(
     "pk-live-0d017c4c-307e-441c-8b72-cb60f64f77f8"
   );
-  const [integrationId, setIntegrationId] = useState("audible");
+  const [integrationId, setIntegrationId] = useState("doordash");
   const [selectedIntegration, setSelectedIntegration] =
-    useState<string>("audible");
+    useState<string>("doordash");
   const [presentationStyle, setPresentationStyle] = useState<"modal" | "embed">(
     "modal"
   );
@@ -64,6 +64,7 @@ const BasicExample: React.FC = () => {
     { value: "audible", label: "Audible" },
     { value: "youtube", label: "YouTube" },
     { value: "netflix", label: "Netflix" },
+    { value: "doordash", label: "Doordash" },
     { value: "ubereats", label: "UberEats" },
   ];
 
