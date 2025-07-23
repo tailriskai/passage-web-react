@@ -64,6 +64,7 @@ const BasicExample: React.FC = () => {
     { value: "audible", label: "Audible" },
     { value: "youtube", label: "YouTube" },
     { value: "netflix", label: "Netflix" },
+    { value: "ubereats", label: "UberEats" },
   ];
 
   const addLog = (
