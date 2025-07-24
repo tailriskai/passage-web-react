@@ -154,10 +154,6 @@ const BasicExample: React.FC = () => {
     addLog(`Opening Passage ${presentationStyle}...`);
 
     try {
-      // Disconnect any existing WebSocket connection before opening
-      addLog("🔌 Disconnecting existing WebSocket connection...");
-      await passage.disconnect();
-
       const openOptions: any = {
         presentationStyle,
         onConnectionComplete: (data: PassageSuccessData) => {
