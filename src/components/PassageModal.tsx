@@ -87,7 +87,9 @@ export const PassageModal: React.FC<PassageModalProps> = ({
             "[PassageModal] Received universal link request:",
             data.url
           );
-          window.open(data.url, "_blank");
+          // Navigate in the same tab instead of opening a new one
+          // This allows users to use the browser back button to return
+          window.location.href = data.url;
           return;
         }
 
