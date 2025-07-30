@@ -1,7 +1,52 @@
+import { jwtDecode } from "jwt-decode";
+import { DEFAULT_LOGGER_ENDPOINT } from "./config";
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface LoggerTransport {
   log(level: LogLevel, message: string, ...args: any[]): void;
+}
+
+interface LogEntry {
+  level: LogLevel;
+  message: string;
+  context?: string;
+  metadata?: Record<string, unknown>;
+  timestamp: string;
+  sessionId?: string;
+}
+
+interface SDKLogEntry extends LogEntry {
+  source: "sdk";
+  sdkName: string;
+  sdkVersion?: string;
+  appVersion?: string;
+  platform?: string;
+  deviceInfo?: Record<string, unknown>;
+}
+
+interface HttpTransportConfig {
+  endpoint: string;
+  sdkName: string;
+  sdkVersion?: string;
+  appVersion?: string;
+  platform?: string;
+  deviceInfo?: Record<string, unknown>;
+  intentToken?: string;
+  sessionId?: string;
+  batchSize?: number;
+  flushInterval?: number;
+  maxRetries?: number;
+  retryDelay?: number;
+}
+
+interface LoggerConfig {
+  enableHttpTransport?: boolean;
+  httpTransport?: Partial<HttpTransportConfig> & {
+    endpoint?: string;
+    sdkName?: string;
+    intentToken?: string;
+  };
 }
 
 class ConsoleTransport implements LoggerTransport {
@@ -23,10 +68,227 @@ class ConsoleTransport implements LoggerTransport {
   }
 }
 
+class HttpTransport implements LoggerTransport {
+  private config: HttpTransportConfig;
+  private queue: SDKLogEntry[] = [];
+  private flushTimer?: number;
+  private isProcessing: boolean = false;
+  private sessionId: string | null;
+
+  constructor(config: HttpTransportConfig) {
+    this.config = {
+      batchSize: 10,
+      flushInterval: 5000,
+      maxRetries: 3,
+      retryDelay: 1000,
+      ...config,
+    };
+
+    this.sessionId = this.extractSessionId();
+    this.setupEventHandlers();
+    this.scheduleFlush();
+  }
+
+  private extractSessionId(): string | null {
+    // If explicit sessionId provided, use it
+    if (this.config.sessionId) {
+      return this.config.sessionId;
+    }
+
+    // If intentToken provided, decode it to get sessionId
+    if (this.config.intentToken) {
+      try {
+        const decoded = jwtDecode(this.config.intentToken) as {
+          sessionId: string;
+        };
+        return decoded.sessionId;
+      } catch (error) {
+        console.warn("Failed to decode intent token for session ID:", error);
+        return null;
+      }
+    }
+
+    // No intentToken available, return null
+    return null;
+  }
+
+  private setupEventHandlers(): void {
+    // Web page visibility API
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          this.flush();
+        }
+      });
+
+      // Flush on page unload
+      window.addEventListener("beforeunload", () => {
+        this.flush();
+      });
+
+      // Flush on page freeze (mobile safari)
+      window.addEventListener("pagehide", () => {
+        this.flush();
+      });
+    }
+  }
+
+  private scheduleFlush(): void {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+    }
+
+    this.flushTimer = window.setTimeout(() => {
+      this.flush();
+      this.scheduleFlush();
+    }, this.config.flushInterval);
+  }
+
+  private createLogEntry(
+    level: LogLevel,
+    message: string,
+    ...args: any[]
+  ): SDKLogEntry {
+    // Extract context and metadata from args
+    let context: string | undefined;
+    let metadata: Record<string, unknown> = {};
+
+    if (args.length > 0) {
+      if (typeof args[0] === "string") {
+        context = args[0];
+        if (args[1] && typeof args[1] === "object") {
+          metadata = args[1];
+        }
+      } else if (typeof args[0] === "object") {
+        metadata = args[0];
+      }
+    }
+
+    return {
+      source: "sdk" as const,
+      level,
+      message,
+      context,
+      metadata,
+      timestamp: new Date().toISOString(),
+      sessionId: this.sessionId ?? undefined,
+      sdkName: this.config.sdkName,
+      sdkVersion: this.config.sdkVersion,
+      appVersion: this.config.appVersion,
+      platform: this.config.platform,
+      deviceInfo: this.config.deviceInfo,
+    };
+  }
+
+  log(level: LogLevel, message: string, ...args: any[]): void {
+    const entry = this.createLogEntry(level, message, ...args);
+    this.queue.push(entry);
+
+    // Flush if batch size reached
+    if (this.queue.length >= this.config.batchSize!) {
+      this.flush();
+    }
+  }
+
+  async flush(): Promise<void> {
+    if (this.isProcessing || this.queue.length === 0) {
+      return;
+    }
+
+    this.isProcessing = true;
+    const logsToSend = [...this.queue];
+    this.queue = [];
+
+    try {
+      await this.sendLogs(logsToSend);
+    } catch (error) {
+      // Re-queue failed logs (with limit to prevent infinite growth)
+      if (this.queue.length < 100) {
+        this.queue.unshift(...logsToSend);
+      }
+      console.warn("Failed to send logs to server:", error);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  private async sendLogs(
+    logs: SDKLogEntry[],
+    retryCount: number = 0
+  ): Promise<void> {
+    try {
+      const response = await fetch(this.config.endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ logs }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      if (retryCount < this.config.maxRetries!) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.config.retryDelay! * (retryCount + 1))
+        );
+        return this.sendLogs(logs, retryCount + 1);
+      }
+      throw error;
+    }
+  }
+
+  // Cleanup method
+  destroy(): void {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+    }
+    this.flush(); // Final flush
+  }
+}
+
 class Logger {
   private transports: LoggerTransport[] = [new ConsoleTransport()];
   private enabled: boolean = false; // Default to disabled
   private debugMode: boolean = false;
+  private config: LoggerConfig;
+
+  constructor(config: LoggerConfig = {}) {
+    this.config = {
+      enableHttpTransport: true, // Default to enabled
+      httpTransport: {
+        endpoint: "/api/logger", // Default endpoint
+        sdkName: "web-react",
+        ...config.httpTransport,
+      },
+      ...config,
+    };
+
+    // Auto-configure HTTP transport if enabled
+    if (
+      this.config.enableHttpTransport &&
+      this.config.httpTransport?.endpoint &&
+      this.config.httpTransport?.sdkName
+    ) {
+      this.setupDefaultHttpTransport();
+    }
+  }
+
+  private setupDefaultHttpTransport(): void {
+    try {
+      // Only add if we don't already have an HTTP transport
+      const hasHttpTransport = this.transports.some(
+        (transport) => transport instanceof HttpTransport
+      );
+      if (!hasHttpTransport && this.config.httpTransport) {
+        const httpConfig = this.config.httpTransport as HttpTransportConfig;
+        this.addHttpTransport(httpConfig);
+      }
+    } catch (error) {
+      console.warn("Failed to setup default HTTP transport:", error);
+    }
+  }
 
   addTransport(transport: LoggerTransport): void {
     this.transports.push(transport);
@@ -43,6 +305,26 @@ class Logger {
   setDebugMode(debug: boolean): void {
     this.debugMode = debug;
     this.enabled = debug;
+  }
+
+  updateIntentToken(intentToken: string | null): void {
+    // Update HTTP transport config if it exists
+    const httpTransport = this.transports.find(
+      (transport) => transport instanceof HttpTransport
+    ) as HttpTransport | undefined;
+
+    if (httpTransport) {
+      // Remove existing HTTP transport
+      this.removeTransport(httpTransport);
+
+      // Add new HTTP transport with updated intent token
+      if (this.config.httpTransport) {
+        this.addHttpTransport({
+          ...this.config.httpTransport,
+          intentToken: intentToken || undefined,
+        } as any);
+      }
+    }
   }
 
   private logToTransports(
@@ -81,10 +363,97 @@ class Logger {
   error(message: string, ...args: any[]): void {
     this.logToTransports("error", message, ...args);
   }
+
+  // Convenience method to add HTTP transport with sensible defaults
+  addHttpTransport(
+    config: Partial<HttpTransportConfig> & { endpoint: string; sdkName: string }
+  ): HttpTransport {
+    try {
+      // Get platform and device info for web environment
+      let platform: string = "web";
+      let deviceInfo: Record<string, unknown> | undefined;
+
+      if (typeof navigator !== "undefined") {
+        deviceInfo = {
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          platform: navigator.platform,
+          cookieEnabled: navigator.cookieEnabled,
+          onLine: navigator.onLine,
+        };
+
+        // Add connection info if available (Network Information API)
+        const connection =
+          (navigator as any).connection ||
+          (navigator as any).mozConnection ||
+          (navigator as any).webkitConnection;
+        if (connection) {
+          deviceInfo.connection = {
+            effectiveType: connection.effectiveType,
+            downlink: connection.downlink,
+            rtt: connection.rtt,
+          };
+        }
+
+        // Get screen info if available
+        if (typeof screen !== "undefined") {
+          deviceInfo.screen = {
+            width: screen.width,
+            height: screen.height,
+            colorDepth: screen.colorDepth,
+            pixelDepth: screen.pixelDepth,
+          };
+        }
+
+        // Get window info if available
+        if (typeof window !== "undefined") {
+          deviceInfo.viewport = {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          };
+        }
+      }
+
+      const transport = new HttpTransport({
+        platform,
+        deviceInfo,
+        ...config,
+      });
+
+      this.addTransport(transport);
+      return transport;
+    } catch (error) {
+      console.error("Failed to add HTTP transport:", error);
+      throw error;
+    }
+  }
 }
 
-// Export singleton instance
-export const logger = new Logger();
+// Get configuration from environment or defaults
+function getDefaultLoggerConfig(): LoggerConfig {
+  // Try to get configuration from environment or window
+  const config: LoggerConfig = {
+    enableHttpTransport: true,
+    httpTransport: {
+      endpoint: DEFAULT_LOGGER_ENDPOINT,
+      sdkName: "web-react-js",
+    },
+  };
 
-// Export Logger class for advanced usage
-export { Logger };
+  // Check for global configuration (if set by app)
+  if (typeof window !== "undefined" && (window as any).PASSAGE_LOGGER_CONFIG) {
+    const globalConfig = (window as any).PASSAGE_LOGGER_CONFIG;
+    Object.assign(config, globalConfig);
+  }
+
+  return config;
+}
+
+// Export singleton instance with default configuration
+export const logger = new Logger(getDefaultLoggerConfig());
+
+// Export classes for advanced usage
+export { Logger, HttpTransport, ConsoleTransport };
+
+// Export types for TypeScript users
+export type { HttpTransportConfig, LogEntry, SDKLogEntry, LoggerConfig };

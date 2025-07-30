@@ -36,3 +36,14 @@ export {
   CONFIG_DEFAULTS,
   PASSAGE_DATA_RESULTS_KEY,
 } from "./config";
+
+// Logger
+export { logger, Logger, HttpTransport, ConsoleTransport } from "./logger";
+export type {
+  HttpTransportConfig,
+  LogEntry,
+  SDKLogEntry,
+  LogLevel,
+  LoggerTransport,
+  LoggerConfig,
+} from "./logger";

@@ -141,11 +141,21 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
   const wsManager = WebSocketManager.getInstance();
 
+  // Update logger intent token helper function
+  const updateLoggerIntentToken = useCallback((token: string | null) => {
+    logger.updateIntentToken(token);
+    logger.debug("[PassageProvider] Updated logger with intent token:", {
+      hasIntentToken: !!token,
+    });
+  }, []);
+
   // Initialize logger with debug mode
   useEffect(() => {
     logger.setDebugMode(config.debug ?? false);
+    // Initialize logger with current intent token (if any)
+    updateLoggerIntentToken(intentTokenRef.current);
     logger.debug("[PassageProvider] Initialized with config:", config);
-  }, [config.debug]);
+  }, [config.debug, updateLoggerIntentToken]);
 
   // Generate intent token
   const generateIntentToken = useCallback(
@@ -222,6 +232,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           options.integrationId
         );
         intentTokenRef.current = token;
+        updateLoggerIntentToken(token);
         logger.debug("[PassageProvider] Initialization complete");
 
         // Store callbacks
@@ -537,6 +548,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
         // Set initial state
         intentTokenRef.current = token;
+        updateLoggerIntentToken(token);
         setPresentationStyle(options.presentationStyle || "modal");
 
         // Set initial status to pending so QR code shows immediately

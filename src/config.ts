@@ -19,6 +19,7 @@ export const PASSAGE_DATA_RESULTS_KEY = "passage_data_results";
 
 // Full URLs (convenience constants)
 export const DEFAULT_CONNECT_URL = `${DEFAULT_WEB_BASE_URL}${CONNECT_PATH}`;
+export const DEFAULT_LOGGER_ENDPOINT = `${DEFAULT_WEB_BASE_URL}/api/logger`;
 
 // Configuration defaults object
 export const CONFIG_DEFAULTS = {
