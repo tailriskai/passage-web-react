@@ -13,9 +13,10 @@ const BasicExample: React.FC = () => {
   const [publishableKey, setPublishableKey] = useState(
     "pk-live-0d017c4c-307e-441c-8b72-cb60f64f77f8"
   );
-  const [integrationId, setIntegrationId] = useState("passage-test");
-  const [selectedIntegration, setSelectedIntegration] =
-    useState<string>("passage-test");
+  const [integrationId, setIntegrationId] = useState("passage-test-captcha");
+  const [selectedIntegration, setSelectedIntegration] = useState<string>(
+    "passage-test-captcha"
+  );
   const [presentationStyle, setPresentationStyle] = useState<"modal" | "embed">(
     "modal"
   );
@@ -60,6 +61,10 @@ const BasicExample: React.FC = () => {
   );
 
   const integrationOptions = [
+    {
+      value: "passage-test-captcha",
+      label: "Passage Test Integration (with CAPTCHA)",
+    },
     { value: "passage-test", label: "Passage Test Integration" },
     { value: "kindle", label: "Kindle" },
     { value: "audible", label: "Audible" },
