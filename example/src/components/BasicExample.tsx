@@ -13,9 +13,9 @@ const BasicExample: React.FC = () => {
   const [publishableKey, setPublishableKey] = useState(
     "pk-live-0d017c4c-307e-441c-8b72-cb60f64f77f8"
   );
-  const [integrationId, setIntegrationId] = useState("spotify");
+  const [integrationId, setIntegrationId] = useState("passage-test");
   const [selectedIntegration, setSelectedIntegration] =
-    useState<string>("spotify");
+    useState<string>("passage-test");
   const [presentationStyle, setPresentationStyle] = useState<"modal" | "embed">(
     "modal"
   );
@@ -60,6 +60,7 @@ const BasicExample: React.FC = () => {
   );
 
   const integrationOptions = [
+    { value: "passage-test", label: "Passage Test Integration" },
     { value: "kindle", label: "Kindle" },
     { value: "audible", label: "Audible" },
     { value: "youtube", label: "YouTube" },
