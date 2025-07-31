@@ -87,6 +87,16 @@ export interface PassageInitializeOptions {
   prompts?: PassagePrompt[];
 
   /**
+   * Products to process after connection
+   */
+  products?: string[];
+
+  /**
+   * Session arguments for the connection
+   */
+  sessionArgs?: any;
+
+  /**
    * Callbacks
    */
   onConnectionComplete?: (data: PassageSuccessData) => void;
