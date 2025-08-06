@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   usePassage,
   PassageSuccessData,
@@ -10,12 +10,20 @@ import LogDisplay from "./LogDisplay";
 
 const BasicExample: React.FC = () => {
   const passage = usePassage();
+
+  // Helper function to get integration from URL
+  const getIntegrationFromUrl = (): string => {
+    const path = window.location.pathname;
+    const integration = path.slice(1); // Remove leading slash
+    return integration || "passage-test"; // Default to passage-test if no integration in URL
+  };
+
   const [publishableKey, setPublishableKey] = useState(
     "pk-live-0d017c4c-307e-441c-8b72-cb60f64f77f8"
   );
-  const [integrationId, setIntegrationId] = useState("passage-test-captcha");
+  const [integrationId, setIntegrationId] = useState(getIntegrationFromUrl());
   const [selectedIntegration, setSelectedIntegration] = useState<string>(
-    "passage-test-captcha"
+    getIntegrationFromUrl()
   );
   const [presentationStyle, setPresentationStyle] = useState<"modal" | "embed">(
     "modal"
@@ -29,6 +37,69 @@ const BasicExample: React.FC = () => {
     }>
   >([]);
   const [loading, setLoading] = useState(false);
+
+  const integrationOptions = [
+    {
+      value: "passage-test-captcha",
+      label: "Passage Test Integration (with CAPTCHA)",
+    },
+    { value: "passage-test", label: "Passage Test Integration" },
+    { value: "kindle", label: "Kindle" },
+    { value: "audible", label: "Audible" },
+    { value: "youtube", label: "YouTube" },
+    { value: "netflix", label: "Netflix" },
+    { value: "doordash", label: "Doordash" },
+    { value: "ubereats", label: "UberEats" },
+    { value: "chess", label: "Chess.com" },
+    { value: "spotify", label: "Spotify" },
+    { value: "verizon", label: "Verizon" },
+    { value: "chewy", label: "Chewy" },
+  ];
+
+  // Effect to handle URL changes and validate integration
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const integration = getIntegrationFromUrl();
+      const validIntegrations = integrationOptions
+        .map((opt) => opt.value)
+        .filter(Boolean);
+
+      // Check if the integration from URL is valid
+      if (integration && validIntegrations.includes(integration)) {
+        setIntegrationId(integration);
+        setSelectedIntegration(integration);
+      } else if (integration && integration !== "passage-test") {
+        // Invalid integration in URL, but not empty - log warning and use default
+        console.warn(
+          `Invalid integration "${integration}" in URL. Using default "passage-test".`
+        );
+        // Update URL to reflect the default
+        window.history.replaceState({}, "", "/passage-test");
+        setIntegrationId("passage-test");
+        setSelectedIntegration("passage-test");
+      }
+    };
+
+    // Handle initial load
+    handleUrlChange();
+
+    // Listen for browser back/forward navigation
+    const handlePopState = () => {
+      handleUrlChange();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  // Function to update URL when integration changes
+  const updateUrlForIntegration = (integration: string) => {
+    const newPath = integration ? `/${integration}` : "/";
+    window.history.pushState({}, "", newPath);
+  };
 
   const defaultSchema = {
     type: "object",
@@ -59,23 +130,6 @@ const BasicExample: React.FC = () => {
   const [promptResults, setPromptResults] = useState<PassagePromptResponse[]>(
     []
   );
-
-  const integrationOptions = [
-    {
-      value: "passage-test-captcha",
-      label: "Passage Test Integration (with CAPTCHA)",
-    },
-    { value: "passage-test", label: "Passage Test Integration" },
-    { value: "kindle", label: "Kindle" },
-    { value: "audible", label: "Audible" },
-    { value: "youtube", label: "YouTube" },
-    { value: "netflix", label: "Netflix" },
-    { value: "doordash", label: "Doordash" },
-    { value: "ubereats", label: "UberEats" },
-    { value: "chess", label: "Chess.com" },
-    { value: "spotify", label: "Spotify" },
-    { value: "verizon", label: "Verizon" },
-  ];
 
   const addLog = (
     message: string,
@@ -350,8 +404,10 @@ const BasicExample: React.FC = () => {
             id="integration-select"
             value={selectedIntegration}
             onChange={(e) => {
-              setSelectedIntegration(e.target.value);
-              setIntegrationId(e.target.value);
+              const newIntegration = e.target.value;
+              setSelectedIntegration(newIntegration);
+              setIntegrationId(newIntegration);
+              updateUrlForIntegration(newIntegration);
             }}
             disabled={isInitialized}
             style={{

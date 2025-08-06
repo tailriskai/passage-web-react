@@ -149,27 +149,12 @@ class HttpTransport implements LoggerTransport {
     message: string,
     ...args: any[]
   ): SDKLogEntry {
-    // Extract context and metadata from args
-    let context: string | undefined;
-    let metadata: Record<string, unknown> = {};
-
-    if (args.length > 0) {
-      if (typeof args[0] === "string") {
-        context = args[0];
-        if (args[1] && typeof args[1] === "object") {
-          metadata = args[1];
-        }
-      } else if (typeof args[0] === "object") {
-        metadata = args[0];
-      }
-    }
-
     return {
       source: "sdk" as const,
       level,
       message,
-      context,
-      metadata,
+      context: "SDK", // Default context as expected by backend
+      metadata: args.length > 0 ? { args } : undefined,
       timestamp: new Date().toISOString(),
       sessionId: this.sessionId ?? undefined,
       sdkName: this.config.sdkName,
