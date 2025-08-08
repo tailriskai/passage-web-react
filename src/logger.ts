@@ -1,5 +1,5 @@
 import { jwtDecode } from "jwt-decode";
-import { DEFAULT_LOGGER_ENDPOINT } from "./config";
+import { DEFAULT_WEB_BASE_URL, LOGGER_PATH } from "./config";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -243,7 +243,7 @@ class Logger {
     this.config = {
       enableHttpTransport: true, // Default to enabled
       httpTransport: {
-        endpoint: "/api/logger", // Default endpoint
+        endpoint: buildLoggerEndpoint(DEFAULT_WEB_BASE_URL),
         sdkName: "web-react",
         ...config.httpTransport,
       },
@@ -257,6 +257,32 @@ class Logger {
       this.config.httpTransport?.sdkName
     ) {
       this.setupDefaultHttpTransport();
+    }
+  }
+
+  // Update the base URL used to build the logger endpoint (e.g., https://ui.getpassage.ai)
+  setWebBaseUrl(webBaseUrl: string): void {
+    try {
+      const newEndpoint = buildLoggerEndpoint(webBaseUrl);
+      // Persist on config so subsequent updates reuse the latest value
+      if (!this.config.httpTransport) this.config.httpTransport = {} as any;
+      (this.config.httpTransport as any).endpoint = newEndpoint;
+
+      // If an HTTP transport exists, replace it to pick up the new endpoint
+      const existing = this.transports.find(
+        (t) => t instanceof HttpTransport
+      ) as HttpTransport | undefined;
+
+      if (existing) {
+        this.removeTransport(existing);
+      }
+
+      // Keep any known properties, including intentToken if present
+      if (this.config.httpTransport) {
+        this.addHttpTransport(this.config.httpTransport as any);
+      }
+    } catch (error) {
+      console.warn("Failed to set logger web base URL:", error);
     }
   }
 
@@ -304,10 +330,10 @@ class Logger {
 
       // Add new HTTP transport with updated intent token
       if (this.config.httpTransport) {
-        this.addHttpTransport({
-          ...this.config.httpTransport,
-          intentToken: intentToken || undefined,
-        } as any);
+        // Persist token on config for future rebuilds
+        (this.config.httpTransport as any).intentToken =
+          intentToken || undefined;
+        this.addHttpTransport(this.config.httpTransport as any);
       }
     }
   }
@@ -420,7 +446,7 @@ function getDefaultLoggerConfig(): LoggerConfig {
   const config: LoggerConfig = {
     enableHttpTransport: true,
     httpTransport: {
-      endpoint: DEFAULT_LOGGER_ENDPOINT,
+      endpoint: buildLoggerEndpoint(DEFAULT_WEB_BASE_URL),
       sdkName: "web-react-js",
     },
   };
@@ -432,6 +458,19 @@ function getDefaultLoggerConfig(): LoggerConfig {
   }
 
   return config;
+}
+
+// Helper to build endpoint from a base web URL and the configured path
+function buildLoggerEndpoint(baseUrl: string): string {
+  try {
+    const trimmedBase = baseUrl.replace(/\/$/, "");
+    const trimmedPath = LOGGER_PATH.replace(/^\//, "");
+    return `${trimmedBase}/${trimmedPath}`;
+  } catch {
+    // Fallback to path as-is if something goes wrong
+    const trimmedPath = LOGGER_PATH.replace(/^\//, "");
+    return `/${trimmedPath}`;
+  }
 }
 
 // Export singleton instance with default configuration

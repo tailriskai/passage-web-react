@@ -5,9 +5,7 @@ import type {
   StatusUpdateMessage,
   ConnectionUpdate,
 } from "./types";
-
-const DEFAULT_SOCKET_URL = "https://api.getpassage.ai";
-const DEFAULT_SOCKET_NAMESPACE = "/ws";
+import { DEFAULT_SOCKET_NAMESPACE, DEFAULT_SOCKET_URL } from "./config";
 
 export class WebSocketManager {
   private static instance: WebSocketManager | null = null;

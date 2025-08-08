@@ -32,10 +32,6 @@ export const PassageModal: React.FC<PassageModalProps> = ({
   customStyles = defaultCustomStyles,
   presentationStyle = "modal",
 }) => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [iframeHeight, setIframeHeight] = useState<number>(600); // Default height
-  const [iframeWidth, setIframeWidth] = useState<number>(600); // Default width
-
   // Merge custom styles with defaults
   const mergedStyles = {
     content: { ...defaultCustomStyles.content, ...customStyles.content },
@@ -44,15 +40,6 @@ export const PassageModal: React.FC<PassageModalProps> = ({
     footer: { ...defaultCustomStyles.footer, ...customStyles.footer },
     container: { ...defaultCustomStyles.container, ...customStyles.container },
   };
-
-  useEffect(() => {
-    if (intentToken) {
-      setIsLoading(false);
-      logger.debug("[PassageModal] Intent token available:", intentToken);
-    } else {
-      setIsLoading(true);
-    }
-  }, [intentToken]);
 
   useEffect(() => {
     logger.debug(
@@ -105,27 +92,9 @@ export const PassageModal: React.FC<PassageModalProps> = ({
           onClose();
           return;
         }
-
-        // Handle both old height-only and new dimensions messages
-        if (data.type === "IFRAME_DIMENSIONS_UPDATE") {
-          if (typeof data.height === "number") {
-            logger.debug("[PassageModal] Received height update:", data.height);
-            setIframeHeight(Math.max(data.height, 400)); // Minimum height of 400px
-          }
-          if (typeof data.width === "number") {
-            logger.debug("[PassageModal] Received width update:", data.width);
-            setIframeWidth(Math.max(data.width, 300)); // Minimum width of 300px
-          }
-        } else if (
-          data.type === "IFRAME_HEIGHT_UPDATE" &&
-          typeof data.height === "number"
-        ) {
-          // Backward compatibility for old height-only messages
-          logger.debug("[PassageModal] Received height update:", data.height);
-          setIframeHeight(Math.max(data.height, 400)); // Minimum height of 400px
-        }
       } catch (error) {
         // Ignore non-JSON messages
+        logger.error("[PassageModal] Error parsing message:", error);
       }
     };
 

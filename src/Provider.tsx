@@ -152,10 +152,12 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   // Initialize logger with debug mode
   useEffect(() => {
     logger.setDebugMode(config.debug ?? false);
+    // Ensure logger endpoint follows current web base URL
+    logger.setWebBaseUrl(config.webUrl || DEFAULT_WEB_BASE_URL);
     // Initialize logger with current intent token (if any)
     updateLoggerIntentToken(intentTokenRef.current);
     logger.debug("[PassageProvider] Initialized with config:", config);
-  }, [config.debug, updateLoggerIntentToken]);
+  }, [config.debug, config.webUrl, updateLoggerIntentToken]);
 
   // Generate intent token
   const generateIntentToken = useCallback(
