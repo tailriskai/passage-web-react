@@ -9,6 +9,7 @@ import ReactDOM from "react-dom";
 import { PassageModal } from "./components/PassageModal";
 import { WebSocketManager } from "./websocket-manager";
 import { logger } from "./logger";
+import { analytics, ANALYTICS_EVENTS } from "./analytics";
 import {
   DEFAULT_WEB_BASE_URL,
   DEFAULT_API_BASE_URL,
@@ -141,23 +142,40 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
   const wsManager = WebSocketManager.getInstance();
 
-  // Update logger intent token helper function
-  const updateLoggerIntentToken = useCallback((token: string | null) => {
+  // Update logger and analytics intent token helper function
+  const updateIntentToken = useCallback((token: string | null) => {
     logger.updateIntentToken(token);
-    logger.debug("[PassageProvider] Updated logger with intent token:", {
-      hasIntentToken: !!token,
-    });
+    analytics.updateIntentToken(token);
+    logger.debug(
+      "[PassageProvider] Updated logger and analytics with intent token:",
+      {
+        hasIntentToken: !!token,
+      }
+    );
   }, []);
 
-  // Initialize logger with debug mode
+  // Initialize logger and analytics with debug mode
   useEffect(() => {
     logger.setDebugMode(config.debug ?? false);
     // Ensure logger endpoint follows current web base URL
     logger.setWebBaseUrl(config.webUrl || DEFAULT_WEB_BASE_URL);
-    // Initialize logger with current intent token (if any)
-    updateLoggerIntentToken(intentTokenRef.current);
+
+    // Configure analytics
+    analytics.configure({
+      enabled: true, // Always enabled for analytics
+      webBaseUrl: config.webUrl || DEFAULT_WEB_BASE_URL,
+    });
+
+    // Initialize logger and analytics with current intent token (if any)
+    updateIntentToken(intentTokenRef.current);
     logger.debug("[PassageProvider] Initialized with config:", config);
-  }, [config.debug, config.webUrl, updateLoggerIntentToken]);
+
+    // Track configuration
+    analytics.track(ANALYTICS_EVENTS.SDK_CONFIGURE_START, {
+      debug: config.debug,
+      webUrl: config.webUrl,
+    });
+  }, [config.debug, config.webUrl, updateIntentToken]);
 
   // Generate intent token
   const generateIntentToken = useCallback(
@@ -240,8 +258,11 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           options.sessionArgs
         );
         intentTokenRef.current = token;
-        updateLoggerIntentToken(token);
+        updateIntentToken(token);
         logger.debug("[PassageProvider] Initialization complete");
+
+        // Track successful configuration
+        analytics.track(ANALYTICS_EVENTS.SDK_CONFIGURE_SUCCESS);
 
         // Store callbacks
         onConnectionCompleteRef.current = options.onConnectionComplete;
@@ -251,6 +272,13 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         onExitRef.current = options.onExit;
       } catch (error) {
         logger.error("[PassageProvider] Initialization failed:", error);
+
+        // Track configuration error
+        analytics.track(ANALYTICS_EVENTS.SDK_CONFIGURE_ERROR, {
+          error:
+            error instanceof Error ? error.message : "Initialization failed",
+        });
+
         options.onError?.({
           error:
             error instanceof Error ? error.message : "Initialization failed",
@@ -308,6 +336,12 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               "[PassageProvider] Connection established - connected status reached"
             );
 
+            // Track successful connection
+            analytics.track(ANALYTICS_EVENTS.SDK_ON_SUCCESS, {
+              connectionId: connection.id,
+              status: connection.status,
+            });
+
             const successData: PassageSuccessData = {
               connectionId: connection.id,
               status: connection.status,
@@ -357,6 +391,17 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               "[PassageProvider] Connection failed with status:",
               connection.status
             );
+
+            // Track connection error
+            analytics.track(ANALYTICS_EVENTS.SDK_ON_ERROR, {
+              connectionId: connection.id,
+              status: connection.status,
+              error:
+                connection.status === "rejected"
+                  ? "Connection rejected"
+                  : "Connection failed",
+            });
+
             const errorData: PassageErrorData = {
               error:
                 connection.status === "rejected"
@@ -556,8 +601,14 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
         // Set initial state
         intentTokenRef.current = token;
-        updateLoggerIntentToken(token);
+        updateIntentToken(token);
         setPresentationStyle(options.presentationStyle || "modal");
+
+        // Track open request
+        analytics.track(ANALYTICS_EVENTS.SDK_OPEN_REQUEST, {
+          presentationStyle: options.presentationStyle || "modal",
+          hasPrompts: !!options.prompts?.length,
+        });
 
         // Set initial status to pending so QR code shows immediately
         setStatus("pending");
@@ -606,8 +657,19 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
         setIsOpen(true);
         logger.debug("[PassageProvider] Passage opened successfully");
+
+        // Track modal opened
+        analytics.track(ANALYTICS_EVENTS.SDK_MODAL_OPENED, {
+          presentationStyle: options.presentationStyle || "modal",
+        });
       } catch (error) {
         logger.error("[PassageProvider] Failed to open Passage:", error);
+
+        // Track open error
+        analytics.track(ANALYTICS_EVENTS.SDK_OPEN_ERROR, {
+          error:
+            error instanceof Error ? error.message : "Failed to open Passage",
+        });
 
         const errorData: PassageErrorData = {
           error:
@@ -632,6 +694,12 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   // Close method
   const close = useCallback(async () => {
     logger.debug("[PassageProvider] Closing Passage");
+
+    // Track modal closed
+    analytics.track(ANALYTICS_EVENTS.SDK_MODAL_CLOSED, {
+      status: status || "unknown",
+      presentationStyle: presentationStyle,
+    });
 
     // If not connected yet, this is a manual exit
     if (!status || status === "pending" || status === "connecting") {

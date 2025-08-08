@@ -47,3 +47,11 @@ export type {
   LoggerTransport,
   LoggerConfig,
 } from "./logger";
+
+// Analytics
+export { analytics, ANALYTICS_EVENTS } from "./analytics";
+export type {
+  AnalyticsEvent,
+  AnalyticsEventType,
+  SDKAnalyticsEvent,
+} from "./analytics";

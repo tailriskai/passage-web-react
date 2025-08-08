@@ -54,6 +54,7 @@ const BasicExample: React.FC = () => {
     { value: "spotify", label: "Spotify" },
     { value: "verizon", label: "Verizon" },
     { value: "chewy", label: "Chewy" },
+    { value: "att", label: "AT&T" },
   ];
 
   // Effect to handle URL changes and validate integration

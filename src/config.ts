@@ -14,6 +14,7 @@ export const LOGGER_PATH = `/api/logger`;
 
 // API endpoint paths
 export const INTENT_TOKEN_PATH = "/intent-token";
+export const ANALYTICS_PATH = "/api/analytics";
 
 // LocalStorage keys
 export const PASSAGE_DATA_RESULTS_KEY = "passage_data_results";

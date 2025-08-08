@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { logger } from "./logger";
+import { analytics, ANALYTICS_EVENTS } from "./analytics";
 import type {
   ConnectionStatus,
   StatusUpdateMessage,
@@ -65,6 +66,12 @@ export class WebSocketManager {
       intentToken
     );
 
+    // Track remote control connection start
+    analytics.track(ANALYTICS_EVENTS.SDK_REMOTE_CONTROL_CONNECT_START, {
+      socketUrl,
+      namespace,
+    });
+
     this.socket = io(`${socketUrl}${namespace}`, {
       transports: ["websocket", "polling"],
       timeout: 10000,
@@ -101,12 +108,24 @@ export class WebSocketManager {
           "[WebSocketManager] Connected to WebSocket server, socket ID:",
           this.socket?.id
         );
+
+        // Track successful WebSocket connection
+        analytics.track(ANALYTICS_EVENTS.SDK_REMOTE_CONTROL_CONNECT_SUCCESS, {
+          socketId: this.socket?.id,
+        });
+
         // Don't resolve yet - wait for welcome or connection message
       });
 
       this.socket!.once("connect_error", (error) => {
         cleanup();
         logger.debug("[WebSocketManager] Connection error:", error.message);
+
+        // Track connection error
+        analytics.track(ANALYTICS_EVENTS.SDK_REMOTE_CONTROL_CONNECT_ERROR, {
+          error: error.message,
+        });
+
         reject(error);
       });
 
@@ -146,6 +165,11 @@ export class WebSocketManager {
         reason
       );
       this.isConnected = false;
+
+      // Track disconnection
+      analytics.track(ANALYTICS_EVENTS.SDK_REMOTE_CONTROL_DISCONNECT, {
+        reason,
+      });
     });
 
     this.socket.on("error", (error) => {
@@ -468,6 +492,12 @@ export class WebSocketManager {
         this.statusListeners.size,
         "listeners"
       );
+
+      // Track manual disconnection
+      analytics.track(ANALYTICS_EVENTS.SDK_REMOTE_CONTROL_DISCONNECT, {
+        reason: "manual",
+      });
+
       this.socket.disconnect();
       this.socket = null;
       this.isConnected = false;
