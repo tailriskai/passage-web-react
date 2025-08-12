@@ -97,6 +97,11 @@ export interface PassageInitializeOptions {
   sessionArgs?: any;
 
   /**
+   * Enable recording mode for the session
+   */
+  record?: boolean;
+
+  /**
    * Callbacks
    */
   onConnectionComplete?: (data: PassageSuccessData) => void;

@@ -37,6 +37,7 @@ const BasicExample: React.FC = () => {
     }>
   >([]);
   const [loading, setLoading] = useState(false);
+  const [recordMode, setRecordMode] = useState(false);
 
   const integrationOptions = [
     {
@@ -154,6 +155,9 @@ const BasicExample: React.FC = () => {
     setLoading(true);
     setPromptResults([]);
     addLog("Initializing Passage...");
+    if (recordMode) {
+      addLog("📹 Record mode enabled - session will be recorded", "info");
+    }
 
     // Validate integrationId is selected
     if (!integrationId) {
@@ -172,6 +176,7 @@ const BasicExample: React.FC = () => {
         publishableKey,
         integrationId: integrationId || undefined,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
+        record: recordMode,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
             `✅ Connection complete! Connection ID: ${data.connectionId}`,
@@ -258,6 +263,9 @@ const BasicExample: React.FC = () => {
     setLoading(true);
     setPromptResults([]);
     addLog("🚀 Initialize and Open in one step...");
+    if (recordMode) {
+      addLog("📹 Record mode enabled - session will be recorded", "info");
+    }
 
     // Validate integrationId is selected
     if (!integrationId) {
@@ -278,6 +286,7 @@ const BasicExample: React.FC = () => {
         publishableKey,
         integrationId: integrationId || undefined,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
+        record: recordMode,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
             `✅ Connection complete! Connection ID: ${data.connectionId}`,
@@ -447,6 +456,42 @@ const BasicExample: React.FC = () => {
             <option value="modal">Modal</option>
             <option value="embed">Embed</option>
           </select>
+        </div>
+
+        <div className="input-group">
+          <label
+            htmlFor="record-mode-checkbox"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <input
+              id="record-mode-checkbox"
+              type="checkbox"
+              checked={recordMode}
+              onChange={(e) => setRecordMode(e.target.checked)}
+              disabled={isInitialized}
+              style={{
+                width: "16px",
+                height: "16px",
+                cursor: "pointer",
+              }}
+            />
+            Record Mode
+          </label>
+          <div
+            style={{
+              fontSize: "0.875rem",
+              color: "#6b7280",
+              marginTop: "0.25rem",
+            }}
+          >
+            Enable recording mode for session replay and debugging
+          </div>
         </div>
 
         <div style={{ marginBottom: "1rem" }}>

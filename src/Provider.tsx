@@ -184,7 +184,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       prompts: PassagePrompt[] = [],
       integrationId?: string,
       products?: string[],
-      sessionArgs?: any
+      sessionArgs?: any,
+      record?: boolean
     ): Promise<string> => {
       try {
         const apiUrl = config.apiUrl || DEFAULT_API_BASE_URL;
@@ -194,6 +195,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           prompts,
           products,
           sessionArgs,
+          record: record ?? true,
         };
 
         logger.debug(
@@ -255,7 +257,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           options.prompts || [],
           options.integrationId,
           options.products,
-          options.sessionArgs
+          options.sessionArgs,
+          options.record
         );
         intentTokenRef.current = token;
         updateIntentToken(token);
