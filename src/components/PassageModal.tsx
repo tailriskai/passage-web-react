@@ -41,26 +41,13 @@ export const PassageModal: React.FC<PassageModalProps> = ({
     container: { ...defaultCustomStyles.container, ...customStyles.container },
   };
 
-  useEffect(() => {
-    logger.debug(
-      "[PassageModal] Modal state - isOpen:",
-      isOpen,
-      "status:",
-      status,
-      "intentToken:",
-      intentToken
-    );
-  }, [isOpen, status, intentToken]);
-
   // Listen for dimension updates and close events from iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      logger.debug(
-        "[PassageModal] Received message from origin:",
-        event.origin,
-        "Expected:",
-        new URL(baseUrl).origin
-      );
+      logger.debug("[PassageModal] Received message from origin:", {
+        origin: event.origin,
+        expected: new URL(baseUrl).origin,
+      });
 
       try {
         const data =
@@ -112,7 +99,10 @@ export const PassageModal: React.FC<PassageModalProps> = ({
     return null;
   }
 
-  logger.debug("[PassageModal] Status:", status, "intentToken:", intentToken);
+  logger.debug("[PassageModal] Status:", {
+    status,
+    intentToken,
+  });
 
   // Show loading state when no intent token yet
   const isInitializing = !intentToken;

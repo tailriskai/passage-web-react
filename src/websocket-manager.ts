@@ -304,11 +304,10 @@ export class WebSocketManager {
     });
 
     this.socket.on("reconnect", (attemptNumber) => {
-      logger.debug(
-        "[WebSocketManager] Socket reconnected after",
+      logger.debug("[WebSocketManager] Socket reconnected after", {
         attemptNumber,
-        "attempts"
-      );
+        attempts: "attempts",
+      });
 
       // Notify message listeners
       this.notifyMessageListeners("reconnect", { attemptNumber });
@@ -395,17 +394,18 @@ export class WebSocketManager {
   private notifyMessageListeners(eventName: string, data: any): void {
     logger.debug(
       `[WebSocketManager] Notifying ${this.messageListeners.size} listeners of message:`,
-      eventName,
-      data
+      {
+        eventName,
+        data,
+      }
     );
 
     this.messageListeners.forEach((listener) => {
       try {
-        logger.debug(
-          "[WebSocketManager] Calling message listener with:",
+        logger.debug("[WebSocketManager] Calling message listener with:", {
           eventName,
-          data
-        );
+          data,
+        });
         listener(eventName, data);
       } catch (error) {
         logger.error("[WebSocketManager] Error in message listener:", error);
@@ -487,11 +487,10 @@ export class WebSocketManager {
 
   disconnect(): void {
     if (this.socket) {
-      logger.debug(
-        "[WebSocketManager] Disconnecting WebSocket, clearing",
-        this.statusListeners.size,
-        "listeners"
-      );
+      logger.debug("[WebSocketManager] Disconnecting WebSocket, clearing", {
+        statusListenersCount: this.statusListeners.size,
+        listeners: "listeners",
+      });
 
       // Track manual disconnection
       analytics.track(ANALYTICS_EVENTS.SDK_REMOTE_CONTROL_DISCONNECT, {
@@ -519,14 +518,11 @@ export class WebSocketManager {
 
   isActive(): boolean {
     const active = this.isConnected && this.socket?.connected === true;
-    logger.debug(
-      "[WebSocketManager] Socket active check:",
+    logger.debug("[WebSocketManager] Socket active check:", {
       active,
-      "isConnected:",
-      this.isConnected,
-      "socket.connected:",
-      this.socket?.connected
-    );
+      isConnected: this.isConnected,
+      socketConnected: this.socket?.connected,
+    });
     return active;
   }
 

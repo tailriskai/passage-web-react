@@ -4,7 +4,11 @@ import { DEFAULT_WEB_BASE_URL, LOGGER_PATH } from "./config";
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface LoggerTransport {
-  log(level: LogLevel, message: string, ...args: any[]): void;
+  log(
+    level: LogLevel,
+    message: string,
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
+  ): void;
 }
 
 interface LogEntry {
@@ -50,7 +54,12 @@ interface LoggerConfig {
 }
 
 class ConsoleTransport implements LoggerTransport {
-  log(level: LogLevel, message: string, ...args: any[]): void {
+  log(
+    level: LogLevel,
+    message: string,
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
+  ): void {
+    const args = metadataOrContext ? [metadataOrContext] : [];
     switch (level) {
       case "debug":
         console.log(message, ...args);
@@ -147,14 +156,43 @@ class HttpTransport implements LoggerTransport {
   private createLogEntry(
     level: LogLevel,
     message: string,
-    ...args: any[]
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
   ): SDKLogEntry {
+    let context: string | undefined;
+    let metadata: Record<string, unknown> = {};
+
+    if (metadataOrContext !== undefined && metadataOrContext !== null) {
+      if (typeof metadataOrContext === "string") {
+        context = metadataOrContext;
+      } else if (metadataOrContext instanceof Error) {
+        // If it's an Error object, serialize it properly
+        metadata = {
+          name: metadataOrContext.name,
+          message: metadataOrContext.message,
+          stack: metadataOrContext.stack,
+          ...Object.getOwnPropertyNames(metadataOrContext).reduce(
+            (acc, key) => {
+              acc[key] = (metadataOrContext as any)[key];
+              return acc;
+            },
+            {} as Record<string, any>
+          ),
+        };
+      } else if (typeof metadataOrContext === "object") {
+        // Pass the whole object directly as metadata
+        metadata = { ...(metadataOrContext as Record<string, unknown>) };
+      } else {
+        // Handle primitive types or unknown values
+        metadata = { value: metadataOrContext };
+      }
+    }
+
     return {
       source: "sdk" as const,
       level,
       message,
-      context: "SDK", // Default context as expected by backend
-      metadata: args.length > 0 ? { args } : undefined,
+      context: context || "SDK", // Default context as expected by backend
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       timestamp: new Date().toISOString(),
       sessionId: this.sessionId ?? undefined,
       sdkName: this.config.sdkName,
@@ -165,8 +203,12 @@ class HttpTransport implements LoggerTransport {
     };
   }
 
-  log(level: LogLevel, message: string, ...args: any[]): void {
-    const entry = this.createLogEntry(level, message, ...args);
+  log(
+    level: LogLevel,
+    message: string,
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
+  ): void {
+    const entry = this.createLogEntry(level, message, metadataOrContext);
     this.queue.push(entry);
 
     // Flush if batch size reached
@@ -341,13 +383,13 @@ class Logger {
   private logToTransports(
     level: LogLevel,
     message: string,
-    ...args: any[]
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
   ): void {
     if (!this.enabled) return;
 
     this.transports.forEach((transport) => {
       try {
-        transport.log(level, message, ...args);
+        transport.log(level, message, metadataOrContext);
       } catch (error) {
         // Prevent errors in transports from breaking the app
         console.error("Logger transport error:", error);
@@ -355,24 +397,39 @@ class Logger {
     });
   }
 
-  debug(message: string, ...args: any[]): void {
-    this.logToTransports("debug", message, ...args);
+  debug(
+    message: string,
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
+  ): void {
+    this.logToTransports("debug", message, metadataOrContext);
   }
 
-  log(message: string, ...args: any[]): void {
-    this.logToTransports("debug", message, ...args);
+  log(
+    message: string,
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
+  ): void {
+    this.logToTransports("debug", message, metadataOrContext);
   }
 
-  info(message: string, ...args: any[]): void {
-    this.logToTransports("info", message, ...args);
+  info(
+    message: string,
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
+  ): void {
+    this.logToTransports("info", message, metadataOrContext);
   }
 
-  warn(message: string, ...args: any[]): void {
-    this.logToTransports("warn", message, ...args);
+  warn(
+    message: string,
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
+  ): void {
+    this.logToTransports("warn", message, metadataOrContext);
   }
 
-  error(message: string, ...args: any[]): void {
-    this.logToTransports("error", message, ...args);
+  error(
+    message: string,
+    metadataOrContext?: string | Record<string, unknown> | Error | unknown
+  ): void {
+    this.logToTransports("error", message, metadataOrContext);
   }
 
   // Convenience method to add HTTP transport with sensible defaults

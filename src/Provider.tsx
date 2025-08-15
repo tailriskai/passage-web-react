@@ -309,11 +309,10 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     // Single message listener to handle all events
     const unsubscribeMessage = wsManager.addMessageListener(
       (eventName: string, data: any) => {
-        logger.debug(
-          "[PassageProvider] WebSocket message received:",
+        logger.debug("[PassageProvider] WebSocket message received:", {
           eventName,
-          data
-        );
+          data,
+        });
 
         // Handle connection events
         if (
