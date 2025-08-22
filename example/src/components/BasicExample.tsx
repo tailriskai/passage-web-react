@@ -75,8 +75,9 @@ const BasicExample: React.FC = () => {
         console.warn(
           `Invalid integration "${integration}" in URL. Using default "passage-test".`
         );
-        // Update URL to reflect the default
-        window.history.replaceState({}, "", "/passage-test");
+        // Update URL to reflect the default, preserving query parameters
+        const queryString = window.location.search;
+        window.history.replaceState({}, "", "/passage-test" + queryString);
         setIntegrationId("passage-test");
         setSelectedIntegration("passage-test");
       }
@@ -100,7 +101,10 @@ const BasicExample: React.FC = () => {
   // Function to update URL when integration changes
   const updateUrlForIntegration = (integration: string) => {
     const newPath = integration ? `/${integration}` : "/";
-    window.history.pushState({}, "", newPath);
+    // Preserve existing query parameters
+    const queryString = window.location.search;
+    const newUrl = newPath + queryString;
+    window.history.pushState({}, "", newUrl);
   };
 
   const defaultSchema = {
