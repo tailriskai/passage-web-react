@@ -78,7 +78,7 @@ export class WebSocketManager {
       forceNew: true,
       query: {
         intentToken: this.intentToken,
-        userAgent: "passage-react-js/1.0",
+        agentName: "passage-react-js/1.0",
       },
     });
 

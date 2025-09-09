@@ -601,19 +601,15 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           onExitRef.current = options.onExit;
         }
 
-        // Set initial state
+        // Set initial state - batch updates to prevent multiple renders
         intentTokenRef.current = token;
         updateIntentToken(token);
-        setPresentationStyle(options.presentationStyle || "modal");
 
         // Track open request
         analytics.track(ANALYTICS_EVENTS.SDK_OPEN_REQUEST, {
           presentationStyle: options.presentationStyle || "modal",
           hasPrompts: !!options.prompts?.length,
         });
-
-        // Set initial status to pending so QR code shows immediately
-        setStatus("pending");
 
         // Handle embed mode
         if (options.presentationStyle === "embed" && options.container) {
@@ -657,7 +653,11 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           await wsManager.connect(token, socketUrl, socketNamespace);
         }
 
+        // Batch state updates to prevent multiple renders
+        setPresentationStyle(options.presentationStyle || "modal");
+        setStatus("pending");
         setIsOpen(true);
+
         logger.debug("[PassageProvider] Passage opened successfully");
 
         // Track modal opened
