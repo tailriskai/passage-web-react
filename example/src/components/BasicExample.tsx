@@ -40,32 +40,67 @@ const BasicExample: React.FC = () => {
   const [recordMode, setRecordMode] = useState(false);
   const [products, setProducts] = useState<string[]>([]);
   const [sessionArgs, setSessionArgs] = useState<string>("");
+  const [integrationOptions, setIntegrationOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [integrationsLoading, setIntegrationsLoading] = useState(true);
 
-  const integrationOptions = [
-    {
-      value: "passage-test-captcha",
-      label: "Passage Test Integration (with CAPTCHA)",
-    },
-    { value: "passage-test", label: "Passage Test Integration" },
-    { value: "kindle", label: "Kindle" },
-    { value: "audible", label: "Audible" },
-    { value: "youtube", label: "YouTube" },
-    { value: "netflix", label: "Netflix" },
-    { value: "doordash", label: "Doordash" },
-    { value: "ubereats", label: "UberEats" },
-    { value: "chess", label: "Chess.com" },
-    { value: "spotify", label: "Spotify" },
-    { value: "verizon", label: "Verizon" },
-    { value: "chewy", label: "Chewy" },
-    { value: "att", label: "AT&T" },
-    { value: "kroger", label: "Kroger" },
-    { value: "amazon", label: "Amazon" },
-    { value: "uber", label: "Uber" },
-    { value: "apple-review", label: "Apple Reviews" },
-  ];
+  // Fetch integrations from API
+  useEffect(() => {
+    const fetchIntegrations = async () => {
+      try {
+        setIntegrationsLoading(true);
+        // Get API URL from query params or use default
+        const searchParams = new URLSearchParams(window.location.search);
+        const apiUrlFromQuery = searchParams.get("apiUrl");
+        const apiUrl = apiUrlFromQuery || "https://api.runpassage.ai";
+        const response = await fetch(`${apiUrl}/integrations`);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch integrations: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Transform API response to options format
+        const fetchedOptions = data.map((integration: any) => ({
+          value: integration.slug,
+          label: integration.name,
+        }));
+
+        // Combine hardcoded test integrations with fetched ones
+        const hardcodedOptions = [
+          {
+            value: "passage-test-captcha",
+            label: "Passage Test Integration (with CAPTCHA)",
+          },
+          { value: "passage-test", label: "Passage Test Integration" },
+        ];
+
+        setIntegrationOptions([...hardcodedOptions, ...fetchedOptions]);
+      } catch (error) {
+        console.error("Failed to fetch integrations:", error);
+        // Fallback to only hardcoded test integrations if API fails
+        setIntegrationOptions([
+          {
+            value: "passage-test-captcha",
+            label: "Passage Test Integration (with CAPTCHA)",
+          },
+          { value: "passage-test", label: "Passage Test Integration" },
+        ]);
+      } finally {
+        setIntegrationsLoading(false);
+      }
+    };
+
+    fetchIntegrations();
+  }, []);
 
   // Effect to handle URL changes and validate integration
   useEffect(() => {
+    // Only run validation if integrations have been loaded
+    if (integrationOptions.length === 0) return;
+
     const handleUrlChange = () => {
       const integration = getIntegrationFromUrl();
       const validIntegrations = integrationOptions
@@ -128,7 +163,7 @@ const BasicExample: React.FC = () => {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [integrationOptions]);
 
   // Effect to handle session args when products change
   useEffect(() => {
@@ -629,7 +664,7 @@ const BasicExample: React.FC = () => {
               setIntegrationId(newIntegration);
               updateUrlForIntegration(newIntegration);
             }}
-            disabled={isInitialized}
+            disabled={isInitialized || integrationsLoading}
             style={{
               padding: "0.5rem",
               border: "1px solid #e2e8f0",
@@ -638,12 +673,18 @@ const BasicExample: React.FC = () => {
               width: "100%",
             }}
           >
-            <option value="">Select an integrationid type</option>
-            {integrationOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+            {integrationsLoading ? (
+              <option value="">Loading integrations...</option>
+            ) : (
+              <>
+                <option value="">Select an integration type</option>
+                {integrationOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </>
+            )}
           </select>
         </div>
 
