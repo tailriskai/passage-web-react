@@ -38,6 +38,8 @@ const BasicExample: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(false);
   const [recordMode, setRecordMode] = useState(false);
+  const [products, setProducts] = useState<string[]>([]);
+  const [sessionArgs, setSessionArgs] = useState<string>("");
 
   const integrationOptions = [
     {
@@ -56,9 +58,10 @@ const BasicExample: React.FC = () => {
     { value: "verizon", label: "Verizon" },
     { value: "chewy", label: "Chewy" },
     { value: "att", label: "AT&T" },
-    { value: "kroger", label: "Kroger"},
-    { value: "amazon", label: "Amazon"},
-    { value: "uber", label: "Uber"},
+    { value: "kroger", label: "Kroger" },
+    { value: "amazon", label: "Amazon" },
+    { value: "uber", label: "Uber" },
+    { value: "apple-review", label: "Apple Reviews" },
   ];
 
   // Effect to handle URL changes and validate integration
@@ -84,6 +87,32 @@ const BasicExample: React.FC = () => {
         setIntegrationId("passage-test");
         setSelectedIntegration("passage-test");
       }
+
+      // Handle products from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const productsParam = urlParams.get("products");
+      if (productsParam) {
+        const urlProducts = productsParam.split(",").filter(Boolean);
+        const validProducts = ["history", "info", "add-balance", "switch-card"];
+        const filteredProducts = urlProducts.filter((product) =>
+          validProducts.includes(product)
+        );
+        if (filteredProducts.length > 0) {
+          setProducts(filteredProducts);
+        }
+      }
+
+      // Handle session args from URL parameters
+      const sessionArgsParam = urlParams.get("sessionArgs");
+      if (sessionArgsParam) {
+        try {
+          // Validate JSON before setting
+          JSON.parse(sessionArgsParam);
+          setSessionArgs(sessionArgsParam);
+        } catch (error) {
+          console.warn("Invalid JSON in sessionArgs URL parameter");
+        }
+      }
     };
 
     // Handle initial load
@@ -101,6 +130,116 @@ const BasicExample: React.FC = () => {
     };
   }, []);
 
+  // Effect to handle session args when products change
+  useEffect(() => {
+    if (products.length === 0) {
+      setSessionArgs("");
+      return;
+    }
+
+    try {
+      const currentArgs = sessionArgs.trim() ? JSON.parse(sessionArgs) : {};
+      let hasChanges = false;
+
+      // Add history fields if history is selected
+      if (products.includes("history") && !currentArgs.limit) {
+        currentArgs.limit = 20;
+        hasChanges = true;
+      }
+
+      // Add add-balance fields if add-balance is selected
+      if (products.includes("add-balance")) {
+        if (!currentArgs.primaryCode) {
+          currentArgs.primaryCode = "1234567890";
+          hasChanges = true;
+        }
+        if (!currentArgs.secondaryCode) {
+          currentArgs.secondaryCode = "0987654321";
+          hasChanges = true;
+        }
+        if (!currentArgs.amount) {
+          currentArgs.amount = 100;
+          hasChanges = true;
+        }
+      }
+
+      // Add switch-card fields if switch-card is selected
+      if (products.includes("switch-card")) {
+        if (!currentArgs.cardNumber) {
+          currentArgs.cardNumber = "1234567890";
+          hasChanges = true;
+        }
+        if (!currentArgs.expirationDate) {
+          currentArgs.expirationDate = "12/2025";
+          hasChanges = true;
+        }
+        if (!currentArgs.cvv) {
+          currentArgs.cvv = "123";
+          hasChanges = true;
+        }
+        if (!currentArgs.nameOnCard) {
+          currentArgs.nameOnCard = "John Doe";
+          hasChanges = true;
+        }
+        if (!currentArgs.billingAddress) {
+          currentArgs.billingAddress = "20 West 34th Street";
+          hasChanges = true;
+        }
+        if (!currentArgs.billingCity) {
+          currentArgs.billingCity = "New York";
+          hasChanges = true;
+        }
+        if (!currentArgs.billingState) {
+          currentArgs.billingState = "NY";
+          hasChanges = true;
+        }
+        if (!currentArgs.billingZip) {
+          currentArgs.billingZip = "10001";
+          hasChanges = true;
+        }
+        if (!currentArgs.billingCountry) {
+          currentArgs.billingCountry = "United States";
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        const newSessionArgs = JSON.stringify(currentArgs, null, 2);
+        setSessionArgs(newSessionArgs);
+        updateUrlForSessionArgs(newSessionArgs);
+      }
+    } catch (error) {
+      // If JSON is invalid, create new object based on selected products
+      const newArgs: any = {};
+
+      if (products.includes("history")) {
+        newArgs.limit = 20;
+      }
+      if (products.includes("add-balance")) {
+        newArgs.primaryCode = "1234567890";
+        newArgs.secondaryCode = "0987654321";
+        newArgs.amount = 100;
+      }
+      if (products.includes("switch-card")) {
+        newArgs.cardNumber = "1234567890";
+        newArgs.expirationDate = "12/2025";
+        newArgs.cvv = "123";
+        newArgs.nameOnCard = "John Doe";
+        newArgs.billingAddress = "20 West 34th Street";
+        newArgs.billingCity = "New York";
+        newArgs.billingState = "NY";
+        newArgs.billingZip = "10001";
+        newArgs.billingCountry = "United States";
+      }
+
+      if (Object.keys(newArgs).length > 0) {
+        const newSessionArgs = JSON.stringify(newArgs, null, 2);
+        setSessionArgs(newSessionArgs);
+        updateUrlForSessionArgs(newSessionArgs);
+      }
+    }
+  }, [products]);
+
   // Function to update URL when integration changes
   const updateUrlForIntegration = (integration: string) => {
     const newPath = integration ? `/${integration}` : "/";
@@ -108,6 +247,36 @@ const BasicExample: React.FC = () => {
     const queryString = window.location.search;
     const newUrl = newPath + queryString;
     window.history.pushState({}, "", newUrl);
+  };
+
+  // Function to update URL when products change
+  const updateUrlForProducts = (newProducts: string[]) => {
+    const url = new URL(window.location.href);
+    if (newProducts.length > 0) {
+      url.searchParams.set("products", newProducts.join(","));
+    } else {
+      url.searchParams.delete("products");
+    }
+    window.history.pushState({}, "", url.toString());
+  };
+
+  // Function to update URL when session args change
+  const updateUrlForSessionArgs = (newSessionArgs: string) => {
+    const url = new URL(window.location.href);
+    if (newSessionArgs.trim()) {
+      try {
+        // Validate JSON before adding to URL
+        JSON.parse(newSessionArgs);
+        url.searchParams.set("sessionArgs", newSessionArgs);
+      } catch (error) {
+        // If invalid JSON, don't update URL
+        console.warn("Invalid JSON in session args, not updating URL");
+        return;
+      }
+    } else {
+      url.searchParams.delete("sessionArgs");
+    }
+    window.history.pushState({}, "", url.toString());
   };
 
   const defaultSchema = {
@@ -179,11 +348,28 @@ const BasicExample: React.FC = () => {
     }
 
     try {
+      // Parse sessionArgs JSON if provided
+      let parsedSessionArgs = {};
+      if (sessionArgs.trim()) {
+        try {
+          parsedSessionArgs = JSON.parse(sessionArgs);
+        } catch (error) {
+          addLog(`❌ Invalid JSON in session args: ${error}`, "error");
+          setLoading(false);
+          return;
+        }
+      }
+
       await passage.initialize({
         publishableKey,
         integrationId: integrationId || undefined,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         record: recordMode,
+        products: products.length > 0 ? products : undefined,
+        sessionArgs:
+          Object.keys(parsedSessionArgs).length > 0
+            ? parsedSessionArgs
+            : undefined,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
             `✅ Connection complete! Connection ID: ${data.connectionId}`,
@@ -287,6 +473,18 @@ const BasicExample: React.FC = () => {
     }
 
     try {
+      // Parse sessionArgs JSON if provided
+      let parsedSessionArgs = {};
+      if (sessionArgs.trim()) {
+        try {
+          parsedSessionArgs = JSON.parse(sessionArgs);
+        } catch (error) {
+          addLog(`❌ Invalid JSON in session args: ${error}`, "error");
+          setLoading(false);
+          return;
+        }
+      }
+
       // Step 1: Initialize
       addLog("1️⃣ Initializing Passage...");
       await passage.initialize({
@@ -294,6 +492,11 @@ const BasicExample: React.FC = () => {
         integrationId: integrationId || undefined,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         record: recordMode,
+        products: products.length > 0 ? products : undefined,
+        sessionArgs:
+          Object.keys(parsedSessionArgs).length > 0
+            ? parsedSessionArgs
+            : undefined,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
             `✅ Connection complete! Connection ID: ${data.connectionId}`,
@@ -498,6 +701,247 @@ const BasicExample: React.FC = () => {
             }}
           >
             Enable recording mode for session replay and debugging
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label
+            style={{
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+              display: "block",
+            }}
+          >
+            Products Configuration:
+          </label>
+          <div
+            style={{
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              padding: "1rem",
+              background: "#f9fafb",
+            }}
+          >
+            {["history", "info", "add-balance", "switch-card"].map(
+              (product) => (
+                <label
+                  key={product}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "0.5rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={products.includes(product)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        const newProducts = [...products, product];
+                        setProducts(newProducts);
+                        updateUrlForProducts(newProducts);
+                        // Auto-populate session args when history is checked
+                        if (product === "history" && !sessionArgs.trim()) {
+                          const newSessionArgs = '{\n  "limit": 20\n}';
+                          setSessionArgs(newSessionArgs);
+                          updateUrlForSessionArgs(newSessionArgs);
+                        }
+                        // Auto-populate session args when add-balance is checked
+                        if (product === "add-balance") {
+                          try {
+                            const currentArgs = sessionArgs.trim()
+                              ? JSON.parse(sessionArgs)
+                              : {};
+                            currentArgs.primaryCode = "1234567890";
+                            currentArgs.secondaryCode = "0987654321";
+                            currentArgs.amount = 100;
+                            const newSessionArgs = JSON.stringify(
+                              currentArgs,
+                              null,
+                              2
+                            );
+                            setSessionArgs(newSessionArgs);
+                            updateUrlForSessionArgs(newSessionArgs);
+                          } catch (error) {
+                            // If JSON is invalid, create new object with add-balance fields
+                            const newSessionArgs =
+                              '{\n  "primaryCode": "1234567890",\n  "secondaryCode": "0987654321",\n  "amount": 100\n}';
+                            setSessionArgs(newSessionArgs);
+                            updateUrlForSessionArgs(newSessionArgs);
+                          }
+                        }
+                        // Auto-populate session args when switch-card is checked
+                        if (product === "switch-card") {
+                          try {
+                            const currentArgs = sessionArgs.trim()
+                              ? JSON.parse(sessionArgs)
+                              : {};
+                            currentArgs.cardNumber = "1234567890";
+                            currentArgs.expirationDate = "12/2025";
+                            currentArgs.cvv = "123";
+                            currentArgs.nameOnCard = "John Doe";
+                            currentArgs.billingAddress = "20 West 34th Street";
+                            currentArgs.billingCity = "New York";
+                            currentArgs.billingState = "NY";
+                            currentArgs.billingZip = "10001";
+                            currentArgs.billingCountry = "United States";
+                            const newSessionArgs = JSON.stringify(
+                              currentArgs,
+                              null,
+                              2
+                            );
+                            setSessionArgs(newSessionArgs);
+                            updateUrlForSessionArgs(newSessionArgs);
+                          } catch (error) {
+                            // If JSON is invalid, create new object with switch-card fields
+                            const newSessionArgs =
+                              '{\n  "cardNumber": "1234567890",\n  "expirationDate": "12/2025",\n  "cvv": "123",\n  "nameOnCard": "John Doe",\n  "billingAddress": "20 West 34th Street",\n  "billingCity": "New York",\n  "billingState": "NY",\n  "billingZip": "10001",\n  "billingCountry": "United States"\n}';
+                            setSessionArgs(newSessionArgs);
+                            updateUrlForSessionArgs(newSessionArgs);
+                          }
+                        }
+                      } else {
+                        const newProducts = products.filter(
+                          (p) => p !== product
+                        );
+                        setProducts(newProducts);
+                        updateUrlForProducts(newProducts);
+                        // Remove limit from session args when history is unchecked
+                        if (product === "history") {
+                          try {
+                            const currentArgs = JSON.parse(sessionArgs);
+                            delete currentArgs.limit;
+                            const remainingKeys = Object.keys(currentArgs);
+                            if (remainingKeys.length === 0) {
+                              setSessionArgs("");
+                              updateUrlForSessionArgs("");
+                            } else {
+                              const newSessionArgs = JSON.stringify(
+                                currentArgs,
+                                null,
+                                2
+                              );
+                              setSessionArgs(newSessionArgs);
+                              updateUrlForSessionArgs(newSessionArgs);
+                            }
+                          } catch (error) {
+                            // If JSON is invalid, just clear it
+                            setSessionArgs("");
+                            updateUrlForSessionArgs("");
+                          }
+                        }
+                        // Remove add-balance fields when add-balance is unchecked
+                        if (product === "add-balance") {
+                          try {
+                            const currentArgs = JSON.parse(sessionArgs);
+                            delete currentArgs.primaryCode;
+                            delete currentArgs.secondaryCode;
+                            delete currentArgs.amount;
+                            const remainingKeys = Object.keys(currentArgs);
+                            if (remainingKeys.length === 0) {
+                              setSessionArgs("");
+                              updateUrlForSessionArgs("");
+                            } else {
+                              const newSessionArgs = JSON.stringify(
+                                currentArgs,
+                                null,
+                                2
+                              );
+                              setSessionArgs(newSessionArgs);
+                              updateUrlForSessionArgs(newSessionArgs);
+                            }
+                          } catch (error) {
+                            // If JSON is invalid, just clear it
+                            setSessionArgs("");
+                            updateUrlForSessionArgs("");
+                          }
+                        }
+                        // Remove switch-card fields when switch-card is unchecked
+                        if (product === "switch-card") {
+                          try {
+                            const currentArgs = JSON.parse(sessionArgs);
+                            delete currentArgs.cardNumber;
+                            delete currentArgs.expirationDate;
+                            delete currentArgs.cvv;
+                            delete currentArgs.nameOnCard;
+                            delete currentArgs.billingAddress;
+                            delete currentArgs.billingCity;
+                            delete currentArgs.billingState;
+                            delete currentArgs.billingZip;
+                            delete currentArgs.billingCountry;
+                            const remainingKeys = Object.keys(currentArgs);
+                            if (remainingKeys.length === 0) {
+                              setSessionArgs("");
+                              updateUrlForSessionArgs("");
+                            } else {
+                              const newSessionArgs = JSON.stringify(
+                                currentArgs,
+                                null,
+                                2
+                              );
+                              setSessionArgs(newSessionArgs);
+                              updateUrlForSessionArgs(newSessionArgs);
+                            }
+                          } catch (error) {
+                            // If JSON is invalid, just clear it
+                            setSessionArgs("");
+                            updateUrlForSessionArgs("");
+                          }
+                        }
+                      }
+                    }}
+                    disabled={isInitialized}
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      cursor: "pointer",
+                    }}
+                  />
+                  {product}
+                </label>
+              )
+            )}
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label
+            style={{
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+              display: "block",
+            }}
+          >
+            Session Args (JSON):
+          </label>
+          <textarea
+            value={sessionArgs}
+            onChange={(e) => {
+              setSessionArgs(e.target.value);
+              updateUrlForSessionArgs(e.target.value);
+            }}
+            placeholder='{"key": "value"}'
+            disabled={isInitialized}
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #e2e8f0",
+              borderRadius: "4px",
+              resize: "vertical",
+              minHeight: "80px",
+              fontFamily: "monospace",
+            }}
+          />
+          <div
+            style={{
+              fontSize: "0.875rem",
+              color: "#6b7280",
+              marginTop: "0.25rem",
+            }}
+          >
+            Enter a valid JSON object that will be passed as sessionArgs
           </div>
         </div>
 
