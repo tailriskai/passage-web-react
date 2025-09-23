@@ -44,6 +44,7 @@ const BasicExample: React.FC = () => {
     Array<{ value: string; label: string }>
   >([]);
   const [integrationsLoading, setIntegrationsLoading] = useState(true);
+  const [formattedJsonData, setFormattedJsonData] = useState<string>("");
 
   // Fetch integrations from API
   useEffect(() => {
@@ -77,7 +78,22 @@ const BasicExample: React.FC = () => {
           { value: "passage-test", label: "Passage Test Integration" },
         ];
 
-        setIntegrationOptions([...hardcodedOptions, ...fetchedOptions]);
+        // Create a map to avoid duplicates, with hardcoded options taking precedence
+        const optionsMap = new Map();
+
+        // Add hardcoded options first (they take precedence)
+        hardcodedOptions.forEach((option) => {
+          optionsMap.set(option.value, option);
+        });
+
+        // Add fetched options, but don't override hardcoded ones
+        fetchedOptions.forEach((option: any) => {
+          if (!optionsMap.has(option.value)) {
+            optionsMap.set(option.value, option);
+          }
+        });
+
+        setIntegrationOptions(Array.from(optionsMap.values()));
       } catch (error) {
         console.error("Failed to fetch integrations:", error);
         // Fallback to only hardcoded test integrations if API fails
@@ -621,7 +637,9 @@ const BasicExample: React.FC = () => {
   const handleGetData = async () => {
     addLog("Retrieving session data...");
     const data = await passage.getData();
-    addLog(`📊 Session data: ${JSON.stringify(data, null, 2)}`, "success");
+    const formattedData = JSON.stringify(data, null, 2);
+    setFormattedJsonData(formattedData);
+    addLog(`📊 Session data: ${formattedData}`, "success");
     if (data.length > 0) {
       const lastResult = data[0];
       setPromptResults(lastResult.prompts || []);
@@ -1159,6 +1177,140 @@ const BasicExample: React.FC = () => {
                 <strong>{result.name}:</strong> {result.content}
               </div>
             ))}
+          </div>
+        )}
+
+        {formattedJsonData && (
+          <div
+            className="status-display success"
+            style={{ marginBottom: "1rem" }}
+          >
+            <h4 style={{ marginBottom: "0.5rem" }}>
+              📋 Session Data:
+            </h4>
+            <div
+              style={{
+                maxHeight: "400px",
+                overflowY: "auto",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                padding: "1rem",
+                background: "#f9fafb",
+              }}
+            >
+              {(() => {
+                try {
+                  const data = JSON.parse(formattedJsonData);
+                  return (
+                    <div>
+                      <div style={{ marginBottom: "1rem", padding: "0.5rem", background: "#e2e8f0", borderRadius: "4px" }}>
+                        <strong>Total Sessions:</strong> {data.length}
+                      </div>
+                      {data.map((session: any, sessionIndex: number) => (
+                        <div key={sessionIndex} style={{ marginBottom: "1.5rem", border: "1px solid #d1d5db", borderRadius: "8px", padding: "1rem", background: "white" }}>
+                          <div style={{ marginBottom: "0.5rem", fontSize: "0.875rem", color: "#6b7280" }}>
+                            <strong>Session {sessionIndex + 1}</strong> - {new Date(session.timestamp).toLocaleString()}
+                          </div>
+                          <div style={{ marginBottom: "0.5rem", fontSize: "0.75rem", color: "#9ca3af", wordBreak: "break-all" }}>
+                            <strong>Intent Token:</strong> {session.intentToken.substring(0, 50)}...
+                          </div>
+                          {session.data && session.data.length > 0 && (
+                            <div>
+                              <div style={{ marginBottom: "0.5rem", fontWeight: "600", color: "#374151" }}>
+                                Videos ({session.data.length}):
+                              </div>
+                              <div style={{ display: "grid", gap: "0.75rem" }}>
+                                {session.data.map((video: any, videoIndex: number) => (
+                                  <div key={videoIndex} style={{ 
+                                    border: "1px solid #e5e7eb", 
+                                    borderRadius: "6px", 
+                                    padding: "0.75rem", 
+                                    background: "#fafafa",
+                                    display: "flex",
+                                    gap: "0.75rem"
+                                  }}>
+                                    <div style={{ flex: "0 0 120px" }}>
+                                      <img 
+                                        src={video.thumbnailUrl} 
+                                        alt={video.title}
+                                        style={{ 
+                                          width: "100%", 
+                                          height: "68px", 
+                                          objectFit: "cover", 
+                                          borderRadius: "4px" 
+                                        }}
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                    <div style={{ flex: "1" }}>
+                                      <div style={{ fontWeight: "600", marginBottom: "0.25rem", fontSize: "0.875rem", lineHeight: "1.25" }}>
+                                        {video.title}
+                                      </div>
+                                      <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>
+                                        <strong>Channel:</strong> {video.channel}
+                                      </div>
+                                      <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>
+                                        <strong>Duration:</strong> {video.duration}
+                                      </div>
+                                      <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>
+                                        <strong>Watched:</strong> {new Date(video.watchedAt).toLocaleString()}
+                                      </div>
+                                      <div style={{ fontSize: "0.75rem", color: "#6b7280", lineHeight: "1.25" }}>
+                                        {video.description}
+                                      </div>
+                                      <div style={{ marginTop: "0.25rem" }}>
+                                        <a 
+                                          href={video.videoUrl} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          style={{ 
+                                            fontSize: "0.75rem", 
+                                            color: "#3b82f6", 
+                                            textDecoration: "none" 
+                                          }}
+                                        >
+                                          Watch Video →
+                                        </a>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {session.prompts && session.prompts.length > 0 && (
+                            <div style={{ marginTop: "1rem" }}>
+                              <div style={{ fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
+                                Prompts ({session.prompts.length}):
+                              </div>
+                              {session.prompts.map((prompt: any, promptIndex: number) => (
+                                <div key={promptIndex} style={{ 
+                                  background: "#f3f4f6", 
+                                  padding: "0.5rem", 
+                                  borderRadius: "4px", 
+                                  marginBottom: "0.25rem",
+                                  fontSize: "0.75rem"
+                                }}>
+                                  <strong>{prompt.name}:</strong> {prompt.content}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                } catch (error) {
+                  return (
+                    <div style={{ color: "#dc2626", fontFamily: "monospace", fontSize: "0.875rem" }}>
+                      Error parsing data: {error instanceof Error ? error.message : String(error)}
+                    </div>
+                  );
+                }
+              })()}
+            </div>
           </div>
         )}
 
