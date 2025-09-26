@@ -276,6 +276,12 @@ export class WebSocketManager {
       this.notifyMessageListeners("prompt", data);
     });
 
+    // Handle done command event
+    this.socket.on("done", (data: any) => {
+      logger.debug("[WebSocketManager] Received 'done' event:", data);
+      this.notifyMessageListeners("done", data);
+    });
+
     // Log all events for debugging
     if (logger["enabled"]) {
       this.socket.onAny((eventName, ...args) => {

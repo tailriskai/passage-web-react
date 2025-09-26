@@ -7,6 +7,7 @@ import {
   PassagePromptResponse,
 } from "@getpassage/react-js";
 import LogDisplay from "./LogDisplay";
+import JsonExplorerMulti from "./JsonExplorerMulti";
 
 const BasicExample: React.FC = () => {
   const passage = usePassage();
@@ -45,6 +46,7 @@ const BasicExample: React.FC = () => {
   >([]);
   const [integrationsLoading, setIntegrationsLoading] = useState(true);
   const [formattedJsonData, setFormattedJsonData] = useState<string>("");
+  const [connectionResults, setConnectionResults] = useState<any[]>([]);
 
   // Fetch integrations from API
   useEffect(() => {
@@ -430,15 +432,30 @@ const BasicExample: React.FC = () => {
             `Data received: ${JSON.stringify(data.data, null, 2)}`,
             "success"
           );
+          setConnectionResults(prev => [...prev, {
+            type: data.status === 'done' ? 'done' : 'connectionComplete',
+            timestamp: new Date().toISOString(),
+            data: data
+          }]);
         },
         onError: (error: PassageErrorData) => {
           addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
+          setConnectionResults(prev => [...prev, {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            data: error
+          }]);
         },
         onDataComplete: (data) => {
           addLog(
             `📊 Data processing complete: ${JSON.stringify(data, null, 2)}`,
             "success"
           );
+          setConnectionResults(prev => [...prev, {
+            type: 'dataComplete',
+            timestamp: new Date().toISOString(),
+            data: data
+          }]);
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
@@ -446,9 +463,19 @@ const BasicExample: React.FC = () => {
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
+          setConnectionResults(prev => [...prev, {
+            type: 'promptComplete',
+            timestamp: new Date().toISOString(),
+            data: promptResponse
+          }]);
         },
         onExit: (reason) => {
           addLog(`👋 User exited: ${reason || "unknown reason"}`);
+          setConnectionResults(prev => [...prev, {
+            type: 'exit',
+            timestamp: new Date().toISOString(),
+            data: { reason: reason || "unknown reason" }
+          }]);
         },
       });
 
@@ -472,12 +499,24 @@ const BasicExample: React.FC = () => {
             `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
             "success"
           );
+          setConnectionResults(prev => [...prev, {
+            type: data.status === 'done' ? 'done' : 'connectionComplete',
+            timestamp: new Date().toISOString(),
+            presentationStyle: presentationStyle,
+            data: data
+          }]);
         },
         onError: (error: PassageErrorData) => {
           addLog(
             `❌ ${presentationStyle}: Error occurred: ${error.error}`,
             "error"
           );
+          setConnectionResults(prev => [...prev, {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            presentationStyle: presentationStyle,
+            data: error
+          }]);
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
@@ -485,6 +524,12 @@ const BasicExample: React.FC = () => {
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
+          setConnectionResults(prev => [...prev, {
+            type: 'promptComplete',
+            timestamp: new Date().toISOString(),
+            presentationStyle: presentationStyle,
+            data: promptResponse
+          }]);
         },
       };
 
@@ -548,35 +593,6 @@ const BasicExample: React.FC = () => {
           Object.keys(parsedSessionArgs).length > 0
             ? parsedSessionArgs
             : undefined,
-        onConnectionComplete: (data: PassageSuccessData) => {
-          addLog(
-            `✅ Connection complete! Connection ID: ${data.connectionId}`,
-            "success"
-          );
-          addLog(
-            `Data received: ${JSON.stringify(data.data, null, 2)}`,
-            "success"
-          );
-        },
-        onError: (error: PassageErrorData) => {
-          addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
-        },
-        onDataComplete: (data) => {
-          addLog(
-            `📊 Data processing complete: ${JSON.stringify(data, null, 2)}`,
-            "success"
-          );
-        },
-        onPromptComplete: (promptResponse: PassagePromptResponse) => {
-          addLog(
-            `🎯 Prompt completed: ${promptResponse.name} = ${promptResponse.content}`,
-            "success"
-          );
-          setPromptResults((prev) => [...prev, promptResponse]);
-        },
-        onExit: (reason) => {
-          addLog(`👋 User exited: ${reason || "unknown reason"}`);
-        },
       });
 
       setIsInitialized(true);
@@ -593,12 +609,24 @@ const BasicExample: React.FC = () => {
             `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
             "success"
           );
+          setConnectionResults(prev => [...prev, {
+            type: data.status === 'done' ? 'done' : 'connectionComplete',
+            timestamp: new Date().toISOString(),
+            presentationStyle: presentationStyle,
+            data: data
+          }]);
         },
         onError: (error: PassageErrorData) => {
           addLog(
             `❌ ${presentationStyle}: Error occurred: ${error.error}`,
             "error"
           );
+          setConnectionResults(prev => [...prev, {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            presentationStyle: presentationStyle,
+            data: error
+          }]);
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
@@ -606,6 +634,12 @@ const BasicExample: React.FC = () => {
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
+          setConnectionResults(prev => [...prev, {
+            type: 'promptComplete',
+            timestamp: new Date().toISOString(),
+            presentationStyle: presentationStyle,
+            data: promptResponse
+          }]);
         },
       };
 
@@ -649,6 +683,10 @@ const BasicExample: React.FC = () => {
   const clearLogs = () => {
     setLogs([]);
     setPromptResults([]);
+  };
+
+  const clearConnectionResults = () => {
+    setConnectionResults([]);
   };
 
   return (
@@ -1333,6 +1371,33 @@ const BasicExample: React.FC = () => {
         </div>
 
         <LogDisplay logs={logs} />
+
+        {connectionResults.length > 0 && (
+          <div style={{ marginTop: "1.5rem" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "1rem",
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>Connection Results Explorer:</span>
+              <button
+                className="button secondary"
+                onClick={clearConnectionResults}
+                style={{ padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+              >
+                Clear Results
+              </button>
+            </div>
+            <JsonExplorerMulti
+              data={connectionResults}
+              title="All Handler Results"
+              maxHeight="500px"
+            />
+          </div>
+        )}
       </div>
 
       {/* Embed Container as separate example card */}

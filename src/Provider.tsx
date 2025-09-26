@@ -337,28 +337,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             logger.debug(
               "[PassageProvider] Connection established - connected status reached"
             );
-
-            // Track successful connection
-            analytics.track(ANALYTICS_EVENTS.SDK_ON_SUCCESS, {
-              connectionId: connection.id,
-              status: connection.status,
-            });
-
-            const successData: PassageSuccessData = {
-              connectionId: connection.id,
-              status: connection.status,
-              metadata: {
-                completedAt: new Date().toISOString(),
-                promptResults: connection.promptResults,
-              },
-              data: connection.promptResults,
-            };
-
-            logger.debug(
-              "[PassageProvider] Calling onConnectionComplete callback with data:",
-              successData
-            );
-            onConnectionCompleteRef.current?.(successData);
+            // Note: onConnectionComplete is now called only on "done" event with success:true
           } else if (connection.status === "data_available") {
             logger.debug(
               "[PassageProvider] Data available - data_available status reached"
@@ -479,6 +458,115 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               );
               onErrorRef.current?.(errorData);
             }
+          }
+        }
+
+        // Handle direct data_available event
+        if (eventName === "data_available") {
+          logger.debug("[PassageProvider] Direct data_available event received:", data);
+
+          // Update status
+          setStatus("data_available");
+
+          // Create session data result
+          const sessionDataResult: PassageDataResult = {
+            data: data?.data || data || [],
+            prompts: data?.prompts || [],
+          };
+
+          setSessionData(sessionDataResult);
+
+          // Store in localStorage if we have an intentToken
+          if (intentTokenRef.current) {
+            storeDataResult(intentTokenRef.current, sessionDataResult);
+          }
+
+          logger.debug(
+            "[PassageProvider] Calling onDataComplete callback from data_available event:",
+            sessionDataResult
+          );
+          onDataCompleteRef.current?.(sessionDataResult);
+        }
+
+        // Handle done event
+        if (eventName === "done") {
+          const success = data?.success !== false; // Default to true if not specified
+          const resultData = data?.data;
+
+          logger.debug("[PassageProvider] Done event received:", {
+            success,
+            hasData: !!resultData,
+          });
+
+          if (success) {
+            // Track successful completion
+            analytics.track(ANALYTICS_EVENTS.SDK_ON_SUCCESS, {
+              connectionId: connectionData?.id,
+              status: "done",
+              success: true,
+            });
+
+            const successData: PassageSuccessData = {
+              connectionId: connectionData?.id || "",
+              status: "done",
+              metadata: {
+                completedAt: new Date().toISOString(),
+                promptResults: connectionData?.promptResults || [],
+              },
+              data: resultData || connectionData?.promptResults || [],
+            };
+
+            logger.debug(
+              "[PassageProvider] Calling onConnectionComplete callback from done event:",
+              successData
+            );
+            onConnectionCompleteRef.current?.(successData);
+
+            // Also call onDataComplete with the result data
+            const dataResult: PassageDataResult = {
+              data: resultData || connectionData?.data || [],
+              prompts: connectionData?.promptResults?.map((promptResult: any) => ({
+                name: promptResult.name,
+                content: promptResult.result || promptResult.content || "",
+                response: promptResult.result || promptResult.response || promptResult,
+                outputType: promptResult.outputType,
+                outputFormat: promptResult.outputFormat,
+              })) || [],
+            };
+
+            logger.debug(
+              "[PassageProvider] Calling onDataComplete callback from done event:",
+              dataResult
+            );
+            onDataCompleteRef.current?.(dataResult);
+
+            // Store in localStorage if we have an intentToken
+            if (intentTokenRef.current) {
+              storeDataResult(intentTokenRef.current, dataResult);
+            }
+          } else {
+            // Handle done with failure
+            const errorMessage = (resultData as any)?.error || "Operation completed with failure";
+
+            // Track error
+            analytics.track(ANALYTICS_EVENTS.SDK_ON_ERROR, {
+              connectionId: connectionData?.id,
+              status: "done",
+              success: false,
+              error: errorMessage,
+            });
+
+            const errorData: PassageErrorData = {
+              error: errorMessage,
+              code: "DONE_FAILURE",
+              data: resultData,
+            };
+
+            logger.debug(
+              "[PassageProvider] Calling onError callback from done event (success:false):",
+              errorData
+            );
+            onErrorRef.current?.(errorData);
           }
         }
 
