@@ -8,7 +8,9 @@ export type ConnectionStatus =
   | "rejected"
   | "data_processing"
   | "data_available"
-  | "error";
+  | "error"
+  // Adding this here because it's causing a build issue. This is not a valid status for a connection.
+  | "done";
 
 export interface PassageConfig {
   /**
@@ -100,6 +102,17 @@ export interface PassageInitializeOptions {
    * Enable recording mode for the session
    */
   record?: boolean;
+
+  /**
+   * Resources for the connection
+   */
+  resources?: {
+    [key: string]: {
+      [key in "read" | "write"]?: {
+        [key: string]: any;
+      };
+    };
+  };
 
   /**
    * Callbacks

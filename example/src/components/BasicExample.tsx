@@ -39,14 +39,164 @@ const BasicExample: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(false);
   const [recordMode, setRecordMode] = useState(false);
-  const [products, setProducts] = useState<string[]>([]);
-  const [sessionArgs, setSessionArgs] = useState<string>("");
+  const [resources, setResources] = useState<string[]>([]);
+  const [dynamicFormFields, setDynamicFormFields] = useState<any[]>([]);
+  const [formFieldValues, setFormFieldValues] = useState<Record<string, any>>(
+    {}
+  );
   const [integrationOptions, setIntegrationOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
+  const [integrationsData, setIntegrationsData] = useState<any[]>([]);
   const [integrationsLoading, setIntegrationsLoading] = useState(true);
   const [formattedJsonData, setFormattedJsonData] = useState<string>("");
   const [connectionResults, setConnectionResults] = useState<any[]>([]);
+
+  // Function to get available resources for the selected integration
+  const getAvailableResources = (integrationSlug: string) => {
+    const integration = integrationsData.find(
+      (int: any) => int.slug === integrationSlug
+    );
+    if (!integration || !integration.resources) {
+      return [];
+    }
+
+    const resources: any[] = [];
+
+    integration.resources.forEach((resource: any) => {
+      const resourceName = resource.resourceType.name
+        .replace(/([A-Z])/g, " $1")
+        .replace(/^./, (str: string) => str.toUpperCase());
+
+      // Add read operation if it exists
+      if (resource.operations.read) {
+        resources.push({
+          value: `${resource.resourceType.name
+            .toLowerCase()
+            .replace(/([A-Z])/g, "-$1")
+            .replace(/^-/, "")}-read`,
+          label: `${resourceName} (Read)`,
+          operation: "read",
+          resource: resource,
+        });
+      }
+
+      // Add write operation if it exists
+      if (resource.operations.write) {
+        resources.push({
+          value: `${resource.resourceType.name
+            .toLowerCase()
+            .replace(/([A-Z])/g, "-$1")
+            .replace(/^-/, "")}-write`,
+          label: `${resourceName} (Write)`,
+          operation: "write",
+          resource: resource,
+        });
+      }
+    });
+
+    return resources;
+  };
+
+  // Function to generate dynamic form fields based on selected resources
+  const generateFormFields = (selectedResources: string[]) => {
+    const formFields: any[] = [];
+
+    selectedResources.forEach((resourceValue) => {
+      // Find the resource in the integrations data
+      const integration = integrationsData.find((int: any) =>
+        int.resources?.some((res: any) => {
+          const readValue = `${res.resourceType.name
+            .toLowerCase()
+            .replace(/([A-Z])/g, "-$1")
+            .replace(/^-/, "")}-read`;
+          const writeValue = `${res.resourceType.name
+            .toLowerCase()
+            .replace(/([A-Z])/g, "-$1")
+            .replace(/^-/, "")}-write`;
+          return resourceValue === readValue || resourceValue === writeValue;
+        })
+      );
+
+      if (integration) {
+        integration.resources.forEach((resource: any) => {
+          const readValue = `${resource.resourceType.name
+            .toLowerCase()
+            .replace(/([A-Z])/g, "-$1")
+            .replace(/^-/, "")}-read`;
+          const writeValue = `${resource.resourceType.name
+            .toLowerCase()
+            .replace(/([A-Z])/g, "-$1")
+            .replace(/^-/, "")}-write`;
+
+          if (
+            resourceValue === readValue &&
+            resource.operations.read?.arguments
+          ) {
+            formFields.push({
+              resourceName: resource.resourceType.name,
+              operation: "read",
+              operationName: resource.operations.read.methodName,
+              arguments: resource.operations.read.arguments,
+              resourceValue: readValue,
+            });
+          }
+
+          if (
+            resourceValue === writeValue &&
+            resource.operations.write?.arguments
+          ) {
+            formFields.push({
+              resourceName: resource.resourceType.name,
+              operation: "write",
+              operationName: resource.operations.write.methodName,
+              arguments: resource.operations.write.arguments,
+              resourceValue: writeValue,
+            });
+          }
+        });
+      }
+    });
+
+    return formFields;
+  };
+
+  // Function to build the resources structure from form field values
+  const buildResourcesFromFormData = () => {
+    const resources: any = {};
+
+    // Group form fields by resource name and operation
+    dynamicFormFields.forEach((field) => {
+      const resourceName = field.resourceName;
+      const operation = field.operation;
+
+      // Initialize resource if not exists
+      if (!resources[resourceName]) {
+        resources[resourceName] = {};
+      }
+
+      // Initialize operation if not exists
+      if (!resources[resourceName][operation]) {
+        resources[resourceName][operation] = {};
+      }
+
+      // Add form field values for this operation
+      if (field.arguments.properties) {
+        Object.keys(field.arguments.properties).forEach((propName) => {
+          const fieldKey = `${field.resourceValue}_${propName}`;
+          if (
+            formFieldValues[fieldKey] !== undefined &&
+            formFieldValues[fieldKey] !== ""
+          ) {
+            resources[resourceName][operation][propName] =
+              formFieldValues[fieldKey];
+          }
+        });
+      }
+    });
+
+    return resources;
+  };
 
   // Fetch integrations from API
   useEffect(() => {
@@ -56,8 +206,8 @@ const BasicExample: React.FC = () => {
         // Get API URL from query params or use default
         const searchParams = new URLSearchParams(window.location.search);
         const apiUrlFromQuery = searchParams.get("apiUrl");
-        const apiUrl = apiUrlFromQuery || "https://api.runpassage.ai";
-        const response = await fetch(`${apiUrl}/integrations`);
+        const apiUrl = apiUrlFromQuery || "http://localhost:3000";
+        const response = await fetch(`${apiUrl}/automation/integrations`);
 
         if (!response.ok) {
           throw new Error(`Failed to fetch integrations: ${response.status}`);
@@ -66,7 +216,10 @@ const BasicExample: React.FC = () => {
         const data = await response.json();
 
         // Transform API response to options format
-        const fetchedOptions = data.map((integration: any) => ({
+        // Handle both old format (array) and new format (object with integrations array)
+        const integrations = data.integrations || data;
+        setIntegrationsData(integrations);
+        const fetchedOptions = integrations.map((integration: any) => ({
           value: integration.slug,
           label: integration.name,
         }));
@@ -141,29 +294,19 @@ const BasicExample: React.FC = () => {
         setSelectedIntegration("passage-test");
       }
 
-      // Handle products from URL parameters
+      // Handle resources from URL parameters
       const urlParams = new URLSearchParams(window.location.search);
-      const productsParam = urlParams.get("products");
-      if (productsParam) {
-        const urlProducts = productsParam.split(",").filter(Boolean);
-        const validProducts = ["history", "info", "add-balance", "switch-card"];
-        const filteredProducts = urlProducts.filter((product) =>
-          validProducts.includes(product)
+      const resourcesParam = urlParams.get("resources");
+      if (resourcesParam) {
+        const urlResources = resourcesParam.split(",").filter(Boolean);
+        const validResources = getAvailableResources(integration).map(
+          (p: any) => p.value
         );
-        if (filteredProducts.length > 0) {
-          setProducts(filteredProducts);
-        }
-      }
-
-      // Handle session args from URL parameters
-      const sessionArgsParam = urlParams.get("sessionArgs");
-      if (sessionArgsParam) {
-        try {
-          // Validate JSON before setting
-          JSON.parse(sessionArgsParam);
-          setSessionArgs(sessionArgsParam);
-        } catch (error) {
-          console.warn("Invalid JSON in sessionArgs URL parameter");
+        const filteredResources = urlResources.filter((resource) =>
+          validResources.includes(resource)
+        );
+        if (filteredResources.length > 0) {
+          setResources(filteredResources);
         }
       }
     };
@@ -183,115 +326,11 @@ const BasicExample: React.FC = () => {
     };
   }, [integrationOptions]);
 
-  // Effect to handle session args when products change
+  // Effect to update dynamic form fields when resources change
   useEffect(() => {
-    if (products.length === 0) {
-      setSessionArgs("");
-      return;
-    }
-
-    try {
-      const currentArgs = sessionArgs.trim() ? JSON.parse(sessionArgs) : {};
-      let hasChanges = false;
-
-      // Add history fields if history is selected
-      if (products.includes("history") && !currentArgs.limit) {
-        currentArgs.limit = 20;
-        hasChanges = true;
-      }
-
-      // Add add-balance fields if add-balance is selected
-      if (products.includes("add-balance")) {
-        if (!currentArgs.primaryCode) {
-          currentArgs.primaryCode = "1234567890";
-          hasChanges = true;
-        }
-        if (!currentArgs.secondaryCode) {
-          currentArgs.secondaryCode = "0987654321";
-          hasChanges = true;
-        }
-        if (!currentArgs.amount) {
-          currentArgs.amount = 100;
-          hasChanges = true;
-        }
-      }
-
-      // Add switch-card fields if switch-card is selected
-      if (products.includes("switch-card")) {
-        if (!currentArgs.cardNumber) {
-          currentArgs.cardNumber = "1234567890";
-          hasChanges = true;
-        }
-        if (!currentArgs.expirationDate) {
-          currentArgs.expirationDate = "12/2025";
-          hasChanges = true;
-        }
-        if (!currentArgs.cvv) {
-          currentArgs.cvv = "123";
-          hasChanges = true;
-        }
-        if (!currentArgs.nameOnCard) {
-          currentArgs.nameOnCard = "John Doe";
-          hasChanges = true;
-        }
-        if (!currentArgs.billingAddress) {
-          currentArgs.billingAddress = "20 West 34th Street";
-          hasChanges = true;
-        }
-        if (!currentArgs.billingCity) {
-          currentArgs.billingCity = "New York";
-          hasChanges = true;
-        }
-        if (!currentArgs.billingState) {
-          currentArgs.billingState = "NY";
-          hasChanges = true;
-        }
-        if (!currentArgs.billingZip) {
-          currentArgs.billingZip = "10001";
-          hasChanges = true;
-        }
-        if (!currentArgs.billingCountry) {
-          currentArgs.billingCountry = "United States";
-          hasChanges = true;
-        }
-      }
-
-      if (hasChanges) {
-        const newSessionArgs = JSON.stringify(currentArgs, null, 2);
-        setSessionArgs(newSessionArgs);
-        updateUrlForSessionArgs(newSessionArgs);
-      }
-    } catch (error) {
-      // If JSON is invalid, create new object based on selected products
-      const newArgs: any = {};
-
-      if (products.includes("history")) {
-        newArgs.limit = 20;
-      }
-      if (products.includes("add-balance")) {
-        newArgs.primaryCode = "1234567890";
-        newArgs.secondaryCode = "0987654321";
-        newArgs.amount = 100;
-      }
-      if (products.includes("switch-card")) {
-        newArgs.cardNumber = "1234567890";
-        newArgs.expirationDate = "12/2025";
-        newArgs.cvv = "123";
-        newArgs.nameOnCard = "John Doe";
-        newArgs.billingAddress = "20 West 34th Street";
-        newArgs.billingCity = "New York";
-        newArgs.billingState = "NY";
-        newArgs.billingZip = "10001";
-        newArgs.billingCountry = "United States";
-      }
-
-      if (Object.keys(newArgs).length > 0) {
-        const newSessionArgs = JSON.stringify(newArgs, null, 2);
-        setSessionArgs(newSessionArgs);
-        updateUrlForSessionArgs(newSessionArgs);
-      }
-    }
-  }, [products]);
+    const formFields = generateFormFields(resources);
+    setDynamicFormFields(formFields);
+  }, [resources, integrationsData]);
 
   // Function to update URL when integration changes
   const updateUrlForIntegration = (integration: string) => {
@@ -302,32 +341,13 @@ const BasicExample: React.FC = () => {
     window.history.pushState({}, "", newUrl);
   };
 
-  // Function to update URL when products change
-  const updateUrlForProducts = (newProducts: string[]) => {
+  // Function to update URL when resources change
+  const updateUrlForResources = (newResources: string[]) => {
     const url = new URL(window.location.href);
-    if (newProducts.length > 0) {
-      url.searchParams.set("products", newProducts.join(","));
+    if (newResources.length > 0) {
+      url.searchParams.set("resources", newResources.join(","));
     } else {
-      url.searchParams.delete("products");
-    }
-    window.history.pushState({}, "", url.toString());
-  };
-
-  // Function to update URL when session args change
-  const updateUrlForSessionArgs = (newSessionArgs: string) => {
-    const url = new URL(window.location.href);
-    if (newSessionArgs.trim()) {
-      try {
-        // Validate JSON before adding to URL
-        JSON.parse(newSessionArgs);
-        url.searchParams.set("sessionArgs", newSessionArgs);
-      } catch (error) {
-        // If invalid JSON, don't update URL
-        console.warn("Invalid JSON in session args, not updating URL");
-        return;
-      }
-    } else {
-      url.searchParams.delete("sessionArgs");
+      url.searchParams.delete("resources");
     }
     window.history.pushState({}, "", url.toString());
   };
@@ -401,28 +421,17 @@ const BasicExample: React.FC = () => {
     }
 
     try {
-      // Parse sessionArgs JSON if provided
-      let parsedSessionArgs = {};
-      if (sessionArgs.trim()) {
-        try {
-          parsedSessionArgs = JSON.parse(sessionArgs);
-        } catch (error) {
-          addLog(`❌ Invalid JSON in session args: ${error}`, "error");
-          setLoading(false);
-          return;
-        }
-      }
+      const resourcesData = buildResourcesFromFormData();
+      console.log("Resources data being passed:", resourcesData);
 
       await passage.initialize({
         publishableKey,
         integrationId: integrationId || undefined,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         record: recordMode,
-        products: products.length > 0 ? products : undefined,
-        sessionArgs:
-          Object.keys(parsedSessionArgs).length > 0
-            ? parsedSessionArgs
-            : undefined,
+        products: resources.length > 0 ? resources : undefined,
+        resources:
+          Object.keys(resourcesData).length > 0 ? resourcesData : undefined,
         onConnectionComplete: (data: PassageSuccessData) => {
           addLog(
             `✅ Connection complete! Connection ID: ${data.connectionId}`,
@@ -432,30 +441,39 @@ const BasicExample: React.FC = () => {
             `Data received: ${JSON.stringify(data.data, null, 2)}`,
             "success"
           );
-          setConnectionResults(prev => [...prev, {
-            type: data.status === 'done' ? 'done' : 'connectionComplete',
-            timestamp: new Date().toISOString(),
-            data: data
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: data.status === "done" ? "done" : "connectionComplete",
+              timestamp: new Date().toISOString(),
+              data: data,
+            },
+          ]);
         },
         onError: (error: PassageErrorData) => {
           addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
-          setConnectionResults(prev => [...prev, {
-            type: 'error',
-            timestamp: new Date().toISOString(),
-            data: error
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: "error",
+              timestamp: new Date().toISOString(),
+              data: error,
+            },
+          ]);
         },
         onDataComplete: (data) => {
           addLog(
             `📊 Data processing complete: ${JSON.stringify(data, null, 2)}`,
             "success"
           );
-          setConnectionResults(prev => [...prev, {
-            type: 'dataComplete',
-            timestamp: new Date().toISOString(),
-            data: data
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: "dataComplete",
+              timestamp: new Date().toISOString(),
+              data: data,
+            },
+          ]);
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
@@ -463,19 +481,25 @@ const BasicExample: React.FC = () => {
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
-          setConnectionResults(prev => [...prev, {
-            type: 'promptComplete',
-            timestamp: new Date().toISOString(),
-            data: promptResponse
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: "promptComplete",
+              timestamp: new Date().toISOString(),
+              data: promptResponse,
+            },
+          ]);
         },
         onExit: (reason) => {
           addLog(`👋 User exited: ${reason || "unknown reason"}`);
-          setConnectionResults(prev => [...prev, {
-            type: 'exit',
-            timestamp: new Date().toISOString(),
-            data: { reason: reason || "unknown reason" }
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: "exit",
+              timestamp: new Date().toISOString(),
+              data: { reason: reason || "unknown reason" },
+            },
+          ]);
         },
       });
 
@@ -499,24 +523,30 @@ const BasicExample: React.FC = () => {
             `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
             "success"
           );
-          setConnectionResults(prev => [...prev, {
-            type: data.status === 'done' ? 'done' : 'connectionComplete',
-            timestamp: new Date().toISOString(),
-            presentationStyle: presentationStyle,
-            data: data
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: data.status === "done" ? "done" : "connectionComplete",
+              timestamp: new Date().toISOString(),
+              presentationStyle: presentationStyle,
+              data: data,
+            },
+          ]);
         },
         onError: (error: PassageErrorData) => {
           addLog(
             `❌ ${presentationStyle}: Error occurred: ${error.error}`,
             "error"
           );
-          setConnectionResults(prev => [...prev, {
-            type: 'error',
-            timestamp: new Date().toISOString(),
-            presentationStyle: presentationStyle,
-            data: error
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: "error",
+              timestamp: new Date().toISOString(),
+              presentationStyle: presentationStyle,
+              data: error,
+            },
+          ]);
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
@@ -524,12 +554,15 @@ const BasicExample: React.FC = () => {
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
-          setConnectionResults(prev => [...prev, {
-            type: 'promptComplete',
-            timestamp: new Date().toISOString(),
-            presentationStyle: presentationStyle,
-            data: promptResponse
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: "promptComplete",
+              timestamp: new Date().toISOString(),
+              presentationStyle: presentationStyle,
+              data: promptResponse,
+            },
+          ]);
         },
       };
 
@@ -569,30 +602,48 @@ const BasicExample: React.FC = () => {
     }
 
     try {
-      // Parse sessionArgs JSON if provided
-      let parsedSessionArgs = {};
-      if (sessionArgs.trim()) {
-        try {
-          parsedSessionArgs = JSON.parse(sessionArgs);
-        } catch (error) {
-          addLog(`❌ Invalid JSON in session args: ${error}`, "error");
-          setLoading(false);
-          return;
-        }
-      }
-
       // Step 1: Initialize
       addLog("1️⃣ Initializing Passage...");
+      const resourcesData = buildResourcesFromFormData();
+
+      console.log("Resources data being passed:", resourcesData);
+
       await passage.initialize({
         publishableKey,
         integrationId: integrationId || undefined,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         record: recordMode,
-        products: products.length > 0 ? products : undefined,
-        sessionArgs:
-          Object.keys(parsedSessionArgs).length > 0
-            ? parsedSessionArgs
-            : undefined,
+        resources:
+          Object.keys(resourcesData).length > 0 ? resourcesData : undefined,
+        onConnectionComplete: (data: PassageSuccessData) => {
+          addLog(
+            `✅ Connection complete! Connection ID: ${data.connectionId}`,
+            "success"
+          );
+          addLog(
+            `Data received: ${JSON.stringify(data.data, null, 2)}`,
+            "success"
+          );
+        },
+        onError: (error: PassageErrorData) => {
+          addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
+        },
+        onDataComplete: (data) => {
+          addLog(
+            `📊 Data processing complete: ${JSON.stringify(data, null, 2)}`,
+            "success"
+          );
+        },
+        onPromptComplete: (promptResponse: PassagePromptResponse) => {
+          addLog(
+            `🎯 Prompt completed: ${promptResponse.name} = ${promptResponse.content}`,
+            "success"
+          );
+          setPromptResults((prev) => [...prev, promptResponse]);
+        },
+        onExit: (reason) => {
+          addLog(`👋 User exited: ${reason || "unknown reason"}`);
+        },
       });
 
       setIsInitialized(true);
@@ -609,24 +660,30 @@ const BasicExample: React.FC = () => {
             `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
             "success"
           );
-          setConnectionResults(prev => [...prev, {
-            type: data.status === 'done' ? 'done' : 'connectionComplete',
-            timestamp: new Date().toISOString(),
-            presentationStyle: presentationStyle,
-            data: data
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: data.status === "done" ? "done" : "connectionComplete",
+              timestamp: new Date().toISOString(),
+              presentationStyle: presentationStyle,
+              data: data,
+            },
+          ]);
         },
         onError: (error: PassageErrorData) => {
           addLog(
             `❌ ${presentationStyle}: Error occurred: ${error.error}`,
             "error"
           );
-          setConnectionResults(prev => [...prev, {
-            type: 'error',
-            timestamp: new Date().toISOString(),
-            presentationStyle: presentationStyle,
-            data: error
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: "error",
+              timestamp: new Date().toISOString(),
+              presentationStyle: presentationStyle,
+              data: error,
+            },
+          ]);
         },
         onPromptComplete: (promptResponse: PassagePromptResponse) => {
           addLog(
@@ -634,12 +691,15 @@ const BasicExample: React.FC = () => {
             "success"
           );
           setPromptResults((prev) => [...prev, promptResponse]);
-          setConnectionResults(prev => [...prev, {
-            type: 'promptComplete',
-            timestamp: new Date().toISOString(),
-            presentationStyle: presentationStyle,
-            data: promptResponse
-          }]);
+          setConnectionResults((prev) => [
+            ...prev,
+            {
+              type: "promptComplete",
+              timestamp: new Date().toISOString(),
+              presentationStyle: presentationStyle,
+              data: promptResponse,
+            },
+          ]);
         },
       };
 
@@ -809,7 +869,7 @@ const BasicExample: React.FC = () => {
               display: "block",
             }}
           >
-            Products Configuration:
+            Resources:
           </label>
           <div
             style={{
@@ -819,228 +879,241 @@ const BasicExample: React.FC = () => {
               background: "#f9fafb",
             }}
           >
-            {["history", "info", "add-balance", "switch-card"].map(
-              (product) => (
-                <label
-                  key={product}
+            {getAvailableResources(selectedIntegration).map((product: any) => (
+              <label
+                key={product.value}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  marginBottom: "0.5rem",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={resources.includes(product.value)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      const newResources = [...resources, product.value];
+                      setResources(newResources);
+                      updateUrlForResources(newResources);
+                    } else {
+                      const newResources = resources.filter(
+                        (p) => p !== product.value
+                      );
+                      setResources(newResources);
+                      updateUrlForResources(newResources);
+                    }
+                  }}
+                  disabled={isInitialized}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    marginBottom: "0.5rem",
+                    width: "16px",
+                    height: "16px",
                     cursor: "pointer",
                   }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={products.includes(product)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        const newProducts = [...products, product];
-                        setProducts(newProducts);
-                        updateUrlForProducts(newProducts);
-                        // Auto-populate session args when history is checked
-                        if (product === "history" && !sessionArgs.trim()) {
-                          const newSessionArgs = '{\n  "limit": 20\n}';
-                          setSessionArgs(newSessionArgs);
-                          updateUrlForSessionArgs(newSessionArgs);
-                        }
-                        // Auto-populate session args when add-balance is checked
-                        if (product === "add-balance") {
-                          try {
-                            const currentArgs = sessionArgs.trim()
-                              ? JSON.parse(sessionArgs)
-                              : {};
-                            currentArgs.primaryCode = "1234567890";
-                            currentArgs.secondaryCode = "0987654321";
-                            currentArgs.amount = 100;
-                            const newSessionArgs = JSON.stringify(
-                              currentArgs,
-                              null,
-                              2
-                            );
-                            setSessionArgs(newSessionArgs);
-                            updateUrlForSessionArgs(newSessionArgs);
-                          } catch (error) {
-                            // If JSON is invalid, create new object with add-balance fields
-                            const newSessionArgs =
-                              '{\n  "primaryCode": "1234567890",\n  "secondaryCode": "0987654321",\n  "amount": 100\n}';
-                            setSessionArgs(newSessionArgs);
-                            updateUrlForSessionArgs(newSessionArgs);
-                          }
-                        }
-                        // Auto-populate session args when switch-card is checked
-                        if (product === "switch-card") {
-                          try {
-                            const currentArgs = sessionArgs.trim()
-                              ? JSON.parse(sessionArgs)
-                              : {};
-                            currentArgs.cardNumber = "1234567890";
-                            currentArgs.expirationDate = "12/2025";
-                            currentArgs.cvv = "123";
-                            currentArgs.nameOnCard = "John Doe";
-                            currentArgs.billingAddress = "20 West 34th Street";
-                            currentArgs.billingCity = "New York";
-                            currentArgs.billingState = "NY";
-                            currentArgs.billingZip = "10001";
-                            currentArgs.billingCountry = "United States";
-                            const newSessionArgs = JSON.stringify(
-                              currentArgs,
-                              null,
-                              2
-                            );
-                            setSessionArgs(newSessionArgs);
-                            updateUrlForSessionArgs(newSessionArgs);
-                          } catch (error) {
-                            // If JSON is invalid, create new object with switch-card fields
-                            const newSessionArgs =
-                              '{\n  "cardNumber": "1234567890",\n  "expirationDate": "12/2025",\n  "cvv": "123",\n  "nameOnCard": "John Doe",\n  "billingAddress": "20 West 34th Street",\n  "billingCity": "New York",\n  "billingState": "NY",\n  "billingZip": "10001",\n  "billingCountry": "United States"\n}';
-                            setSessionArgs(newSessionArgs);
-                            updateUrlForSessionArgs(newSessionArgs);
-                          }
-                        }
-                      } else {
-                        const newProducts = products.filter(
-                          (p) => p !== product
-                        );
-                        setProducts(newProducts);
-                        updateUrlForProducts(newProducts);
-                        // Remove limit from session args when history is unchecked
-                        if (product === "history") {
-                          try {
-                            const currentArgs = JSON.parse(sessionArgs);
-                            delete currentArgs.limit;
-                            const remainingKeys = Object.keys(currentArgs);
-                            if (remainingKeys.length === 0) {
-                              setSessionArgs("");
-                              updateUrlForSessionArgs("");
-                            } else {
-                              const newSessionArgs = JSON.stringify(
-                                currentArgs,
-                                null,
-                                2
-                              );
-                              setSessionArgs(newSessionArgs);
-                              updateUrlForSessionArgs(newSessionArgs);
-                            }
-                          } catch (error) {
-                            // If JSON is invalid, just clear it
-                            setSessionArgs("");
-                            updateUrlForSessionArgs("");
-                          }
-                        }
-                        // Remove add-balance fields when add-balance is unchecked
-                        if (product === "add-balance") {
-                          try {
-                            const currentArgs = JSON.parse(sessionArgs);
-                            delete currentArgs.primaryCode;
-                            delete currentArgs.secondaryCode;
-                            delete currentArgs.amount;
-                            const remainingKeys = Object.keys(currentArgs);
-                            if (remainingKeys.length === 0) {
-                              setSessionArgs("");
-                              updateUrlForSessionArgs("");
-                            } else {
-                              const newSessionArgs = JSON.stringify(
-                                currentArgs,
-                                null,
-                                2
-                              );
-                              setSessionArgs(newSessionArgs);
-                              updateUrlForSessionArgs(newSessionArgs);
-                            }
-                          } catch (error) {
-                            // If JSON is invalid, just clear it
-                            setSessionArgs("");
-                            updateUrlForSessionArgs("");
-                          }
-                        }
-                        // Remove switch-card fields when switch-card is unchecked
-                        if (product === "switch-card") {
-                          try {
-                            const currentArgs = JSON.parse(sessionArgs);
-                            delete currentArgs.cardNumber;
-                            delete currentArgs.expirationDate;
-                            delete currentArgs.cvv;
-                            delete currentArgs.nameOnCard;
-                            delete currentArgs.billingAddress;
-                            delete currentArgs.billingCity;
-                            delete currentArgs.billingState;
-                            delete currentArgs.billingZip;
-                            delete currentArgs.billingCountry;
-                            const remainingKeys = Object.keys(currentArgs);
-                            if (remainingKeys.length === 0) {
-                              setSessionArgs("");
-                              updateUrlForSessionArgs("");
-                            } else {
-                              const newSessionArgs = JSON.stringify(
-                                currentArgs,
-                                null,
-                                2
-                              );
-                              setSessionArgs(newSessionArgs);
-                              updateUrlForSessionArgs(newSessionArgs);
-                            }
-                          } catch (error) {
-                            // If JSON is invalid, just clear it
-                            setSessionArgs("");
-                            updateUrlForSessionArgs("");
-                          }
-                        }
-                      }
-                    }}
-                    disabled={isInitialized}
-                    style={{
-                      width: "16px",
-                      height: "16px",
-                      cursor: "pointer",
-                    }}
-                  />
-                  {product}
-                </label>
-              )
-            )}
+                />
+                {product.label}
+              </label>
+            ))}
           </div>
         </div>
 
-        <div className="input-group">
-          <label
-            style={{
-              fontWeight: 600,
-              marginBottom: "0.5rem",
-              display: "block",
-            }}
-          >
-            Session Args (JSON):
-          </label>
-          <textarea
-            value={sessionArgs}
-            onChange={(e) => {
-              setSessionArgs(e.target.value);
-              updateUrlForSessionArgs(e.target.value);
-            }}
-            placeholder='{"key": "value"}'
-            disabled={isInitialized}
-            style={{
-              width: "100%",
-              padding: "0.5rem",
-              border: "1px solid #e2e8f0",
-              borderRadius: "4px",
-              resize: "vertical",
-              minHeight: "80px",
-              fontFamily: "monospace",
-            }}
-          />
-          <div
-            style={{
-              fontSize: "0.875rem",
-              color: "#6b7280",
-              marginTop: "0.25rem",
-            }}
-          >
-            Enter a valid JSON object that will be passed as sessionArgs
+        {/* Dynamic Form Fields */}
+        {dynamicFormFields.length > 0 && (
+          <div className="input-group">
+            <label
+              style={{
+                fontWeight: 600,
+                marginBottom: "0.5rem",
+                display: "block",
+              }}
+            >
+              Dynamic Form Fields:
+            </label>
+            <div
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                padding: "1rem",
+                background: "#f9fafb",
+              }}
+            >
+              {dynamicFormFields.map((field, index) => (
+                <div key={index} style={{ marginBottom: "1rem" }}>
+                  <div
+                    style={{
+                      fontWeight: "600",
+                      marginBottom: "0.5rem",
+                      color: "#374151",
+                    }}
+                  >
+                    {field.resourceName} ({field.operation})
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.875rem",
+                      color: "#6b7280",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    Method: {field.operationName}
+                  </div>
+                  {field.arguments.properties &&
+                    Object.keys(field.arguments.properties).map((propName) => {
+                      const prop = field.arguments.properties[propName];
+                      const isRequired =
+                        field.arguments.required?.includes(propName);
+
+                      return (
+                        <div key={propName} style={{ marginBottom: "0.75rem" }}>
+                          <label
+                            style={{
+                              display: "block",
+                              fontWeight: "500",
+                              marginBottom: "0.25rem",
+                              color: "#374151",
+                            }}
+                          >
+                            {propName}{" "}
+                            {isRequired && (
+                              <span style={{ color: "#dc2626" }}>*</span>
+                            )}
+                          </label>
+                          <div
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "#6b7280",
+                              marginBottom: "0.25rem",
+                            }}
+                          >
+                            {prop.description}
+                          </div>
+                          {prop.type === "string" && (
+                            <input
+                              type="text"
+                              placeholder={`Enter ${propName}`}
+                              value={
+                                formFieldValues[
+                                  `${field.resourceValue}_${propName}`
+                                ] || ""
+                              }
+                              onChange={(e) => {
+                                const fieldKey = `${field.resourceValue}_${propName}`;
+                                setFormFieldValues((prev) => ({
+                                  ...prev,
+                                  [fieldKey]: e.target.value,
+                                }));
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "0.5rem",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "4px",
+                                fontSize: "0.875rem",
+                              }}
+                              maxLength={prop.maxLength}
+                              minLength={prop.minLength}
+                            />
+                          )}
+                          {prop.type === "number" && (
+                            <input
+                              type="number"
+                              placeholder={`Enter ${propName}`}
+                              value={
+                                formFieldValues[
+                                  `${field.resourceValue}_${propName}`
+                                ] || ""
+                              }
+                              onChange={(e) => {
+                                const fieldKey = `${field.resourceValue}_${propName}`;
+                                setFormFieldValues((prev) => ({
+                                  ...prev,
+                                  [fieldKey]: e.target.value,
+                                }));
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "0.5rem",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "4px",
+                                fontSize: "0.875rem",
+                              }}
+                              min={prop.minimum}
+                              max={prop.maximum}
+                            />
+                          )}
+                          {prop.type === "boolean" && (
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5rem",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={
+                                  formFieldValues[
+                                    `${field.resourceValue}_${propName}`
+                                  ] || false
+                                }
+                                onChange={(e) => {
+                                  const fieldKey = `${field.resourceValue}_${propName}`;
+                                  setFormFieldValues((prev) => ({
+                                    ...prev,
+                                    [fieldKey]: e.target.checked,
+                                  }));
+                                }}
+                                style={{
+                                  width: "16px",
+                                  height: "16px",
+                                  cursor: "pointer",
+                                }}
+                              />
+                              {propName}
+                            </label>
+                          )}
+                          {prop.enum && (
+                            <select
+                              value={
+                                formFieldValues[
+                                  `${field.resourceValue}_${propName}`
+                                ] || ""
+                              }
+                              onChange={(e) => {
+                                const fieldKey = `${field.resourceValue}_${propName}`;
+                                setFormFieldValues((prev) => ({
+                                  ...prev,
+                                  [fieldKey]: e.target.value,
+                                }));
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "0.5rem",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "4px",
+                                fontSize: "0.875rem",
+                                background: "white",
+                              }}
+                            >
+                              <option value="">Select {propName}</option>
+                              {prop.enum.map((option: string) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div style={{ marginBottom: "1rem" }}>
           <label
@@ -1223,9 +1296,7 @@ const BasicExample: React.FC = () => {
             className="status-display success"
             style={{ marginBottom: "1rem" }}
           >
-            <h4 style={{ marginBottom: "0.5rem" }}>
-              📋 Session Data:
-            </h4>
+            <h4 style={{ marginBottom: "0.5rem" }}>📋 Session Data:</h4>
             <div
               style={{
                 maxHeight: "400px",
@@ -1241,99 +1312,191 @@ const BasicExample: React.FC = () => {
                   const data = JSON.parse(formattedJsonData);
                   return (
                     <div>
-                      <div style={{ marginBottom: "1rem", padding: "0.5rem", background: "#e2e8f0", borderRadius: "4px" }}>
+                      <div
+                        style={{
+                          marginBottom: "1rem",
+                          padding: "0.5rem",
+                          background: "#e2e8f0",
+                          borderRadius: "4px",
+                        }}
+                      >
                         <strong>Total Sessions:</strong> {data.length}
                       </div>
                       {data.map((session: any, sessionIndex: number) => (
-                        <div key={sessionIndex} style={{ marginBottom: "1.5rem", border: "1px solid #d1d5db", borderRadius: "8px", padding: "1rem", background: "white" }}>
-                          <div style={{ marginBottom: "0.5rem", fontSize: "0.875rem", color: "#6b7280" }}>
-                            <strong>Session {sessionIndex + 1}</strong> - {new Date(session.timestamp).toLocaleString()}
+                        <div
+                          key={sessionIndex}
+                          style={{
+                            marginBottom: "1.5rem",
+                            border: "1px solid #d1d5db",
+                            borderRadius: "8px",
+                            padding: "1rem",
+                            background: "white",
+                          }}
+                        >
+                          <div
+                            style={{
+                              marginBottom: "0.5rem",
+                              fontSize: "0.875rem",
+                              color: "#6b7280",
+                            }}
+                          >
+                            <strong>Session {sessionIndex + 1}</strong> -{" "}
+                            {new Date(session.timestamp).toLocaleString()}
                           </div>
-                          <div style={{ marginBottom: "0.5rem", fontSize: "0.75rem", color: "#9ca3af", wordBreak: "break-all" }}>
-                            <strong>Intent Token:</strong> {session.intentToken.substring(0, 50)}...
+                          <div
+                            style={{
+                              marginBottom: "0.5rem",
+                              fontSize: "0.75rem",
+                              color: "#9ca3af",
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            <strong>Intent Token:</strong>{" "}
+                            {session.intentToken.substring(0, 50)}...
                           </div>
                           {session.data && session.data.length > 0 && (
                             <div>
-                              <div style={{ marginBottom: "0.5rem", fontWeight: "600", color: "#374151" }}>
+                              <div
+                                style={{
+                                  marginBottom: "0.5rem",
+                                  fontWeight: "600",
+                                  color: "#374151",
+                                }}
+                              >
                                 Videos ({session.data.length}):
                               </div>
                               <div style={{ display: "grid", gap: "0.75rem" }}>
-                                {session.data.map((video: any, videoIndex: number) => (
-                                  <div key={videoIndex} style={{ 
-                                    border: "1px solid #e5e7eb", 
-                                    borderRadius: "6px", 
-                                    padding: "0.75rem", 
-                                    background: "#fafafa",
-                                    display: "flex",
-                                    gap: "0.75rem"
-                                  }}>
-                                    <div style={{ flex: "0 0 120px" }}>
-                                      <img 
-                                        src={video.thumbnailUrl} 
-                                        alt={video.title}
-                                        style={{ 
-                                          width: "100%", 
-                                          height: "68px", 
-                                          objectFit: "cover", 
-                                          borderRadius: "4px" 
-                                        }}
-                                        onError={(e) => {
-                                          (e.target as HTMLImageElement).style.display = 'none';
-                                        }}
-                                      />
-                                    </div>
-                                    <div style={{ flex: "1" }}>
-                                      <div style={{ fontWeight: "600", marginBottom: "0.25rem", fontSize: "0.875rem", lineHeight: "1.25" }}>
-                                        {video.title}
+                                {session.data.map(
+                                  (video: any, videoIndex: number) => (
+                                    <div
+                                      key={videoIndex}
+                                      style={{
+                                        border: "1px solid #e5e7eb",
+                                        borderRadius: "6px",
+                                        padding: "0.75rem",
+                                        background: "#fafafa",
+                                        display: "flex",
+                                        gap: "0.75rem",
+                                      }}
+                                    >
+                                      <div style={{ flex: "0 0 120px" }}>
+                                        <img
+                                          src={video.thumbnailUrl}
+                                          alt={video.title}
+                                          style={{
+                                            width: "100%",
+                                            height: "68px",
+                                            objectFit: "cover",
+                                            borderRadius: "4px",
+                                          }}
+                                          onError={(e) => {
+                                            (
+                                              e.target as HTMLImageElement
+                                            ).style.display = "none";
+                                          }}
+                                        />
                                       </div>
-                                      <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>
-                                        <strong>Channel:</strong> {video.channel}
-                                      </div>
-                                      <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>
-                                        <strong>Duration:</strong> {video.duration}
-                                      </div>
-                                      <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>
-                                        <strong>Watched:</strong> {new Date(video.watchedAt).toLocaleString()}
-                                      </div>
-                                      <div style={{ fontSize: "0.75rem", color: "#6b7280", lineHeight: "1.25" }}>
-                                        {video.description}
-                                      </div>
-                                      <div style={{ marginTop: "0.25rem" }}>
-                                        <a 
-                                          href={video.videoUrl} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          style={{ 
-                                            fontSize: "0.75rem", 
-                                            color: "#3b82f6", 
-                                            textDecoration: "none" 
+                                      <div style={{ flex: "1" }}>
+                                        <div
+                                          style={{
+                                            fontWeight: "600",
+                                            marginBottom: "0.25rem",
+                                            fontSize: "0.875rem",
+                                            lineHeight: "1.25",
                                           }}
                                         >
-                                          Watch Video →
-                                        </a>
+                                          {video.title}
+                                        </div>
+                                        <div
+                                          style={{
+                                            fontSize: "0.75rem",
+                                            color: "#6b7280",
+                                            marginBottom: "0.25rem",
+                                          }}
+                                        >
+                                          <strong>Channel:</strong>{" "}
+                                          {video.channel}
+                                        </div>
+                                        <div
+                                          style={{
+                                            fontSize: "0.75rem",
+                                            color: "#6b7280",
+                                            marginBottom: "0.25rem",
+                                          }}
+                                        >
+                                          <strong>Duration:</strong>{" "}
+                                          {video.duration}
+                                        </div>
+                                        <div
+                                          style={{
+                                            fontSize: "0.75rem",
+                                            color: "#6b7280",
+                                            marginBottom: "0.25rem",
+                                          }}
+                                        >
+                                          <strong>Watched:</strong>{" "}
+                                          {new Date(
+                                            video.watchedAt
+                                          ).toLocaleString()}
+                                        </div>
+                                        <div
+                                          style={{
+                                            fontSize: "0.75rem",
+                                            color: "#6b7280",
+                                            lineHeight: "1.25",
+                                          }}
+                                        >
+                                          {video.description}
+                                        </div>
+                                        <div style={{ marginTop: "0.25rem" }}>
+                                          <a
+                                            href={video.videoUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{
+                                              fontSize: "0.75rem",
+                                              color: "#3b82f6",
+                                              textDecoration: "none",
+                                            }}
+                                          >
+                                            Watch Video →
+                                          </a>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  )
+                                )}
                               </div>
                             </div>
                           )}
                           {session.prompts && session.prompts.length > 0 && (
                             <div style={{ marginTop: "1rem" }}>
-                              <div style={{ fontWeight: "600", marginBottom: "0.5rem", color: "#374151" }}>
+                              <div
+                                style={{
+                                  fontWeight: "600",
+                                  marginBottom: "0.5rem",
+                                  color: "#374151",
+                                }}
+                              >
                                 Prompts ({session.prompts.length}):
                               </div>
-                              {session.prompts.map((prompt: any, promptIndex: number) => (
-                                <div key={promptIndex} style={{ 
-                                  background: "#f3f4f6", 
-                                  padding: "0.5rem", 
-                                  borderRadius: "4px", 
-                                  marginBottom: "0.25rem",
-                                  fontSize: "0.75rem"
-                                }}>
-                                  <strong>{prompt.name}:</strong> {prompt.content}
-                                </div>
-                              ))}
+                              {session.prompts.map(
+                                (prompt: any, promptIndex: number) => (
+                                  <div
+                                    key={promptIndex}
+                                    style={{
+                                      background: "#f3f4f6",
+                                      padding: "0.5rem",
+                                      borderRadius: "4px",
+                                      marginBottom: "0.25rem",
+                                      fontSize: "0.75rem",
+                                    }}
+                                  >
+                                    <strong>{prompt.name}:</strong>{" "}
+                                    {prompt.content}
+                                  </div>
+                                )
+                              )}
                             </div>
                           )}
                         </div>
@@ -1342,8 +1505,15 @@ const BasicExample: React.FC = () => {
                   );
                 } catch (error) {
                   return (
-                    <div style={{ color: "#dc2626", fontFamily: "monospace", fontSize: "0.875rem" }}>
-                      Error parsing data: {error instanceof Error ? error.message : String(error)}
+                    <div
+                      style={{
+                        color: "#dc2626",
+                        fontFamily: "monospace",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      Error parsing data:{" "}
+                      {error instanceof Error ? error.message : String(error)}
                     </div>
                   );
                 }
@@ -1382,7 +1552,9 @@ const BasicExample: React.FC = () => {
                 marginBottom: "1rem",
               }}
             >
-              <span style={{ fontWeight: 600 }}>Connection Results Explorer:</span>
+              <span style={{ fontWeight: 600 }}>
+                Connection Results Explorer:
+              </span>
               <button
                 className="button secondary"
                 onClick={clearConnectionResults}
