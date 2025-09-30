@@ -102,6 +102,17 @@ export interface PassageInitializeOptions {
   record?: boolean;
 
   /**
+   * Resources for the connection
+   */
+  resources?: {
+    [key: string]: {
+      [key in "read" | "write"]?: {
+        [key: string]: any;
+      };
+    };
+  };
+
+  /**
    * Callbacks
    */
   onConnectionComplete?: (data: PassageSuccessData) => void;

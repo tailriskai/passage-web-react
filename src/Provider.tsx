@@ -185,7 +185,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       integrationId?: string,
       products?: string[],
       sessionArgs?: any,
-      record?: boolean
+      record?: boolean,
+      resources?: any
     ): Promise<string> => {
       try {
         const apiUrl = config.apiUrl || DEFAULT_API_BASE_URL;
@@ -196,6 +197,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           products,
           sessionArgs,
           record: record ?? true,
+          resources,
         };
 
         logger.debug(
@@ -222,9 +224,37 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         });
 
         if (!response.ok) {
-          throw new Error(
-            `Failed to generate intent token: ${response.status}`
-          );
+          let errorMessage = `Failed to generate intent token: ${response.status}`;
+
+          try {
+            const errorData = await response.json();
+
+            // Handle validation errors with detailed messages
+            if (errorData.errorCode === "VALIDATION_001" && errorData.details) {
+              const validationErrors = Object.values(errorData.details)
+                .map((detail: any) => {
+                  const resourceName = detail.property || "Unknown";
+                  const constraints =
+                    detail.constraints?.custom ||
+                    detail.constraints?.message ||
+                    "Validation failed";
+                  return `${resourceName}: ${constraints}`;
+                })
+                .join("; ");
+
+              errorMessage = `Validation failed: ${validationErrors}`;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            }
+          } catch (parseError) {
+            // If we can't parse the error response, use the default message
+            logger.warn(
+              "[PassageProvider] Could not parse error response:",
+              parseError
+            );
+          }
+
+          throw new Error(errorMessage);
         }
 
         const data = await response.json();
@@ -258,7 +288,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           options.integrationId,
           options.products,
           options.sessionArgs,
-          options.record
+          options.record,
+          options.resources
         );
         intentTokenRef.current = token;
         updateIntentToken(token);

@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf node_modules dist .vite && echo 'Cleaned node_modules, dist, and .vite directories'"
   },
   "dependencies": {
     "react": "^18.2.0",
