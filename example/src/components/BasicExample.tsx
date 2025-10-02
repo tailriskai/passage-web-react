@@ -5,6 +5,7 @@ import {
   PassageErrorData,
   PassagePrompt,
   PassagePromptResponse,
+  DEFAULT_API_BASE_URL,
 } from "@getpassage/react-js";
 import LogDisplay from "./LogDisplay";
 import JsonExplorerMulti from "./JsonExplorerMulti";
@@ -206,7 +207,8 @@ const BasicExample: React.FC = () => {
         // Get API URL from query params or use default
         const searchParams = new URLSearchParams(window.location.search);
         const apiUrlFromQuery = searchParams.get("apiUrl");
-        const apiUrl = apiUrlFromQuery || "http://localhost:3000";
+        const apiUrl =
+          apiUrlFromQuery || DEFAULT_API_BASE_URL || "http://localhost:3000";
         const response = await fetch(`${apiUrl}/automation/integrations`);
 
         if (!response.ok) {
