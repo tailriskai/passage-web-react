@@ -196,7 +196,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           prompts,
           products,
           sessionArgs,
-          record: record ?? true,
+          record,
           resources,
         };
 
@@ -494,7 +494,10 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
         // Handle direct data_available event
         if (eventName === "data_available") {
-          logger.debug("[PassageProvider] Direct data_available event received:", data);
+          logger.debug(
+            "[PassageProvider] Direct data_available event received:",
+            data
+          );
 
           // Update status
           setStatus("data_available");
@@ -556,13 +559,17 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             // Also call onDataComplete with the result data
             const dataResult: PassageDataResult = {
               data: resultData || connectionData?.data || [],
-              prompts: connectionData?.promptResults?.map((promptResult: any) => ({
-                name: promptResult.name,
-                content: promptResult.result || promptResult.content || "",
-                response: promptResult.result || promptResult.response || promptResult,
-                outputType: promptResult.outputType,
-                outputFormat: promptResult.outputFormat,
-              })) || [],
+              prompts:
+                connectionData?.promptResults?.map((promptResult: any) => ({
+                  name: promptResult.name,
+                  content: promptResult.result || promptResult.content || "",
+                  response:
+                    promptResult.result ||
+                    promptResult.response ||
+                    promptResult,
+                  outputType: promptResult.outputType,
+                  outputFormat: promptResult.outputFormat,
+                })) || [],
             };
 
             logger.debug(
@@ -577,7 +584,8 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
             }
           } else {
             // Handle done with failure
-            const errorMessage = (resultData as any)?.error || "Operation completed with failure";
+            const errorMessage =
+              (resultData as any)?.error || "Operation completed with failure";
 
             // Track error
             analytics.track(ANALYTICS_EVENTS.SDK_ON_ERROR, {
