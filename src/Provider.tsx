@@ -113,6 +113,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const intentTokenRef = useRef<string | null>(null);
+  const [intentToken, setIntentToken] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
   const [connectionData, setConnectionData] = useState<ConnectionUpdate | null>(
     null
@@ -292,6 +293,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           options.resources
         );
         intentTokenRef.current = token;
+        setIntentToken(token);
         updateIntentToken(token);
         logger.debug("[PassageProvider] Initialization complete");
 
@@ -382,6 +384,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
                 content: promptResult.result,
                 response: promptResult.result,
               })),
+              intentToken: intentTokenRef.current || undefined,
             };
             setSessionData(sessionDataResult);
 
@@ -506,6 +509,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           const sessionDataResult: PassageDataResult = {
             data: data?.data || data || [],
             prompts: data?.prompts || [],
+            intentToken: intentTokenRef.current || undefined,
           };
 
           setSessionData(sessionDataResult);
@@ -548,6 +552,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
                 promptResults: connectionData?.promptResults || [],
               },
               data: resultData || connectionData?.promptResults || [],
+              intentToken: intentTokenRef.current || undefined,
             };
 
             logger.debug(
@@ -570,6 +575,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
                   outputType: promptResult.outputType,
                   outputFormat: promptResult.outputFormat,
                 })) || [],
+              intentToken: intentTokenRef.current || undefined,
             };
 
             logger.debug(
@@ -662,6 +668,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           const sessionDataResult: PassageDataResult = {
             data: data,
             prompts: [],
+            intentToken: intentTokenRef.current || undefined,
           };
           setSessionData(sessionDataResult);
 
@@ -730,6 +737,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
         // Set initial state - batch updates to prevent multiple renders
         intentTokenRef.current = token;
+        setIntentToken(token);
         updateIntentToken(token);
 
         // Track open request
@@ -943,6 +951,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     close,
     disconnect,
     getData,
+    intentToken,
   };
 
   // No longer needed - we'll use React Portal directly

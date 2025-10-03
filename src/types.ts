@@ -182,6 +182,11 @@ export interface PassageDataResult {
    * Prompts and their result
    */
   prompts?: Array<PassagePromptResponse>;
+
+  /**
+   * The intent token for this session
+   */
+  intentToken?: string;
 }
 
 export interface PassageStoredDataResult extends PassageDataResult {
@@ -205,6 +210,7 @@ export interface PassageSuccessData {
     [key: string]: any;
   };
   data?: any;
+  intentToken?: string;
   pageData?: {
     cookies?: Array<{
       name: string;
@@ -256,6 +262,7 @@ export interface PassageContextValue {
   close: () => Promise<void>;
   disconnect: () => Promise<void>;
   getData: () => Promise<PassageStoredDataResult[]>;
+  intentToken: string | null;
 }
 
 export interface StatusUpdateMessage {
