@@ -69,31 +69,22 @@ const BasicExample: React.FC = () => {
         .replace(/([A-Z])/g, " $1")
         .replace(/^./, (str: string) => str.toUpperCase());
 
-      // Add read operation if it exists
-      if (resource.operations.read) {
-        resources.push({
-          value: `${resource.resourceType.name
-            .toLowerCase()
-            .replace(/([A-Z])/g, "-$1")
-            .replace(/^-/, "")}-read`,
-          label: `${resourceName} (Read)`,
-          operation: "read",
-          resource: resource,
-        });
-      }
-
-      // Add write operation if it exists
-      if (resource.operations.write) {
-        resources.push({
-          value: `${resource.resourceType.name
-            .toLowerCase()
-            .replace(/([A-Z])/g, "-$1")
-            .replace(/^-/, "")}-write`,
-          label: `${resourceName} (Write)`,
-          operation: "write",
-          resource: resource,
-        });
-      }
+      // Dynamically handle all available operations
+      Object.keys(resource.operations).forEach((operationName) => {
+        if (resource.operations[operationName]) {
+          const operationLabel =
+            operationName.charAt(0).toUpperCase() + operationName.slice(1);
+          resources.push({
+            value: `${resource.resourceType.name
+              .toLowerCase()
+              .replace(/([A-Z])/g, "-$1")
+              .replace(/^-/, "")}-${operationName}`,
+            label: `${resourceName} (${operationLabel})`,
+            operation: operationName,
+            resource: resource,
+          });
+        }
+      });
     });
 
     return resources;
@@ -107,54 +98,39 @@ const BasicExample: React.FC = () => {
       // Find the resource in the integrations data
       const integration = integrationsData.find((int: any) =>
         int.resources?.some((res: any) => {
-          const readValue = `${res.resourceType.name
-            .toLowerCase()
-            .replace(/([A-Z])/g, "-$1")
-            .replace(/^-/, "")}-read`;
-          const writeValue = `${res.resourceType.name
-            .toLowerCase()
-            .replace(/([A-Z])/g, "-$1")
-            .replace(/^-/, "")}-write`;
-          return resourceValue === readValue || resourceValue === writeValue;
+          // Check all operations dynamically
+          return Object.keys(res.operations).some((operationName) => {
+            const operationValue = `${res.resourceType.name
+              .toLowerCase()
+              .replace(/([A-Z])/g, "-$1")
+              .replace(/^-/, "")}-${operationName}`;
+            return resourceValue === operationValue;
+          });
         })
       );
 
       if (integration) {
         integration.resources.forEach((resource: any) => {
-          const readValue = `${resource.resourceType.name
-            .toLowerCase()
-            .replace(/([A-Z])/g, "-$1")
-            .replace(/^-/, "")}-read`;
-          const writeValue = `${resource.resourceType.name
-            .toLowerCase()
-            .replace(/([A-Z])/g, "-$1")
-            .replace(/^-/, "")}-write`;
+          // Dynamically handle all operations
+          Object.keys(resource.operations).forEach((operationName) => {
+            const operationValue = `${resource.resourceType.name
+              .toLowerCase()
+              .replace(/([A-Z])/g, "-$1")
+              .replace(/^-/, "")}-${operationName}`;
 
-          if (
-            resourceValue === readValue &&
-            resource.operations.read?.arguments
-          ) {
-            formFields.push({
-              resourceName: resource.resourceType.name,
-              operation: "read",
-              operationName: resource.operations.read.methodName,
-              arguments: resource.operations.read.arguments,
-              resourceValue: readValue,
-            });
-          }
-
-          if (
-            resourceValue === writeValue &&
-            resource.operations.write?.arguments
-          ) {
-            formFields.push({
-              resourceName: resource.resourceType.name,
-              operation: "write",
-              operationName: resource.operations.write.methodName,
-              arguments: resource.operations.write.arguments,
-              resourceValue: writeValue,
-            });
-          }
+            if (
+              resourceValue === operationValue &&
+              resource.operations[operationName]?.arguments
+            ) {
+              formFields.push({
+                resourceName: resource.resourceType.name,
+                operation: operationName,
+                operationName: resource.operations[operationName].methodName,
+                arguments: resource.operations[operationName].arguments,
+                resourceValue: operationValue,
+              });
+            }
+          });
         });
       }
     });
@@ -164,22 +140,53 @@ const BasicExample: React.FC = () => {
 
   // Function to build the resources structure from form field values
   const buildResourcesFromFormData = () => {
-    const resources: any = {};
+    const resourcesObj: any = {};
 
-    // Group form fields by resource name and operation
+    // First, include all selected resources (even those without form fields)
+    resources.forEach((resourceValue) => {
+      // Find the resource in the integrations data
+      const integration = integrationsData.find((int: any) =>
+        int.resources?.some((res: any) => {
+          return Object.keys(res.operations).some((operationName) => {
+            const operationValue = `${res.resourceType.name
+              .toLowerCase()
+              .replace(/([A-Z])/g, "-$1")
+              .replace(/^-/, "")}-${operationName}`;
+            return resourceValue === operationValue;
+          });
+        })
+      );
+
+      if (integration) {
+        integration.resources.forEach((resource: any) => {
+          Object.keys(resource.operations).forEach((operationName) => {
+            const operationValue = `${resource.resourceType.name
+              .toLowerCase()
+              .replace(/([A-Z])/g, "-$1")
+              .replace(/^-/, "")}-${operationName}`;
+
+            if (resourceValue === operationValue) {
+              const resourceName = resource.resourceType.name;
+
+              // Initialize resource if not exists
+              if (!resourcesObj[resourceName]) {
+                resourcesObj[resourceName] = {};
+              }
+
+              // Initialize operation if not exists
+              if (!resourcesObj[resourceName][operationName]) {
+                resourcesObj[resourceName][operationName] = {};
+              }
+            }
+          });
+        });
+      }
+    });
+
+    // Then, add form field values for operations that have arguments
     dynamicFormFields.forEach((field) => {
       const resourceName = field.resourceName;
       const operation = field.operation;
-
-      // Initialize resource if not exists
-      if (!resources[resourceName]) {
-        resources[resourceName] = {};
-      }
-
-      // Initialize operation if not exists
-      if (!resources[resourceName][operation]) {
-        resources[resourceName][operation] = {};
-      }
 
       // Add form field values for this operation
       if (field.arguments.properties) {
@@ -189,14 +196,14 @@ const BasicExample: React.FC = () => {
             formFieldValues[fieldKey] !== undefined &&
             formFieldValues[fieldKey] !== ""
           ) {
-            resources[resourceName][operation][propName] =
+            resourcesObj[resourceName][operation][propName] =
               formFieldValues[fieldKey];
           }
         });
       }
     });
 
-    return resources;
+    return resourcesObj;
   };
 
   // Fetch integrations from API
