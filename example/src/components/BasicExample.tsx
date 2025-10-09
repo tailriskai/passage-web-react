@@ -108,19 +108,27 @@ const BasicExample: React.FC = () => {
 
     selectedResources.forEach((resourceValue) => {
       // Find the resource in the integrations data
-      const integration = integrationsData.find((int: any) =>
-        int.resources?.some((res: any) => {
-          const readValue = `${res.resourceType.name
-            .toLowerCase()
-            .replace(/([A-Z])/g, "-$1")
-            .replace(/^-/, "")}-read`;
-          const writeValue = `${res.resourceType.name
-            .toLowerCase()
-            .replace(/([A-Z])/g, "-$1")
-            .replace(/^-/, "")}-write`;
-          return resourceValue === readValue || resourceValue === writeValue;
-        })
+      // Filter by current integration first to avoid conflicts
+      const currentIntegration = integrationsData.find(
+        (int: any) => int.slug === selectedIntegration
       );
+
+      const integration =
+        currentIntegration ||
+        integrationsData.find((int: any) => {
+          const hasResource = int.resources?.some((res: any) => {
+            const readValue = `${res.resourceType.name
+              .toLowerCase()
+              .replace(/([A-Z])/g, "-$1")
+              .replace(/^-/, "")}-read`;
+            const writeValue = `${res.resourceType.name
+              .toLowerCase()
+              .replace(/([A-Z])/g, "-$1")
+              .replace(/^-/, "")}-write`;
+            return resourceValue === readValue || resourceValue === writeValue;
+          });
+          return hasResource;
+        });
 
       if (integration) {
         integration.resources.forEach((resource: any) => {
@@ -172,13 +180,17 @@ const BasicExample: React.FC = () => {
     // First, add all selected resources (even those without form fields)
     resources.forEach((resourceValue) => {
       // Extract resource name and operation from value (e.g., "trip-read" -> "trip", "read")
-      const isWrite = resourceValue.endsWith('-write');
-      const operation = isWrite ? 'write' : 'read';
+      const isWrite = resourceValue.endsWith("-write");
+      const operation = isWrite ? "write" : "read";
       // Remove the operation suffix and convert to camelCase
-      let resourceName = resourceValue.replace(/-read$/, '').replace(/-write$/, '');
+      let resourceName = resourceValue
+        .replace(/-read$/, "")
+        .replace(/-write$/, "");
 
       // Convert kebab-case to camelCase (e.g., "account-info" -> "accountInfo")
-      resourceName = resourceName.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+      resourceName = resourceName.replace(/-([a-z])/g, (g) =>
+        g[1].toUpperCase()
+      );
 
       // Initialize resource if not exists
       if (!resourcesObj[resourceName]) {
@@ -194,7 +206,9 @@ const BasicExample: React.FC = () => {
     // Then add form field values for resources that have them
     dynamicFormFields.forEach((field) => {
       // Convert PascalCase to camelCase (e.g., "Trip" -> "trip", "AccountInfo" -> "accountInfo")
-      const resourceName = field.resourceName.charAt(0).toLowerCase() + field.resourceName.slice(1);
+      const resourceName =
+        field.resourceName.charAt(0).toLowerCase() +
+        field.resourceName.slice(1);
       const operation = field.operation;
 
       // Initialize resource if not exists (shouldn't happen if resources array is properly set)
@@ -480,7 +494,10 @@ const BasicExample: React.FC = () => {
 
           // Automatically fetch resources if any are selected
           if (resources.length > 0) {
-            addLog(`🔄 Auto-fetching ${resources.length} selected resource(s)...`, "info");
+            addLog(
+              `🔄 Auto-fetching ${resources.length} selected resource(s)...`,
+              "info"
+            );
             await handleFetchResources();
           }
         },
@@ -569,7 +586,10 @@ const BasicExample: React.FC = () => {
 
           // Automatically fetch resources if any are selected
           if (resources.length > 0) {
-            addLog(`🔄 Auto-fetching ${resources.length} selected resource(s)...`, "info");
+            addLog(
+              `🔄 Auto-fetching ${resources.length} selected resource(s)...`,
+              "info"
+            );
             await handleFetchResources();
           }
         },
@@ -712,7 +732,10 @@ const BasicExample: React.FC = () => {
 
           // Automatically fetch resources if any are selected
           if (resources.length > 0) {
-            addLog(`🔄 Auto-fetching ${resources.length} selected resource(s)...`, "info");
+            addLog(
+              `🔄 Auto-fetching ${resources.length} selected resource(s)...`,
+              "info"
+            );
             await handleFetchResources();
           }
         },
@@ -793,7 +816,10 @@ const BasicExample: React.FC = () => {
         return;
       }
 
-      addLog(`🔄 Fetching ${resources.length} resource(s): ${resources.join(', ')}...`, "info");
+      addLog(
+        `🔄 Fetching ${resources.length} resource(s): ${resources.join(", ")}...`,
+        "info"
+      );
 
       const data = await passage.fetchResource(resources);
 
@@ -804,8 +830,13 @@ const BasicExample: React.FC = () => {
         // Log details of each resource
         data.forEach((resource: any) => {
           if (resource.resourceName && resource.data) {
-            const itemCount = Array.isArray(resource.data) ? resource.data.length : 1;
-            addLog(`  • ${resource.resourceName}: ${itemCount} item(s)`, "success");
+            const itemCount = Array.isArray(resource.data)
+              ? resource.data.length
+              : 1;
+            addLog(
+              `  • ${resource.resourceName}: ${itemCount} item(s)`,
+              "success"
+            );
           }
         });
       } else {
@@ -813,7 +844,7 @@ const BasicExample: React.FC = () => {
       }
     } catch (error) {
       addLog(`❌ Error fetching resources: ${error}`, "error");
-      console.error('[handleFetchResources] Error:', error);
+      console.error("[handleFetchResources] Error:", error);
     }
   };
 
@@ -862,8 +893,12 @@ const BasicExample: React.FC = () => {
               updateUrlForIntegration(newIntegration);
 
               // Reset resources to only include those available for the new integration
-              const availableResourceValues = getAvailableResources(newIntegration).map((r: any) => r.value);
-              const filteredResources = resources.filter(r => availableResourceValues.includes(r));
+              const availableResourceValues = getAvailableResources(
+                newIntegration
+              ).map((r: any) => r.value);
+              const filteredResources = resources.filter((r) =>
+                availableResourceValues.includes(r)
+              );
 
               // Only update if there's a difference
               if (filteredResources.length !== resources.length) {
@@ -1401,7 +1436,9 @@ const BasicExample: React.FC = () => {
                 marginBottom: "1rem",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "1rem" }}
+              >
                 <span style={{ fontWeight: 600 }}>Fetched Resource Data:</span>
                 <label
                   style={{
@@ -1438,9 +1475,17 @@ const BasicExample: React.FC = () => {
               <div>
                 {fetchedResourceData.map((resourceData, index) => {
                   // Check if we have a data array to display as table
-                  const dataArray = resourceData.data?.data || (Array.isArray(resourceData.data) ? resourceData.data : null);
+                  const dataArray =
+                    resourceData.data?.data ||
+                    (Array.isArray(resourceData.data)
+                      ? resourceData.data
+                      : null);
 
-                  if (dataArray && Array.isArray(dataArray) && dataArray.length > 0) {
+                  if (
+                    dataArray &&
+                    Array.isArray(dataArray) &&
+                    dataArray.length > 0
+                  ) {
                     return (
                       <div
                         key={index}
@@ -1457,9 +1502,9 @@ const BasicExample: React.FC = () => {
                             borderRight: "1px solid #e2e8f0",
                             borderRadius: "8px 8px 0 0",
                             fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between'
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
                           }}
                         >
                           <div>
@@ -1483,7 +1528,9 @@ const BasicExample: React.FC = () => {
                                 fontWeight: 400,
                               }}
                             >
-                              Page {resourceData.data.meta.page} of {resourceData.data.meta.totalPages} • Total: {resourceData.data.meta.total}
+                              Page {resourceData.data.meta.page} of{" "}
+                              {resourceData.data.meta.totalPages} • Total:{" "}
+                              {resourceData.data.meta.total}
                             </span>
                           )}
                         </div>
