@@ -35,6 +35,24 @@ import type {
 
 export const PassageContext = createContext<PassageContextValue | null>(null);
 
+// Helper function to decode JWT and extract sessionId
+const decodeJWT = (token: string): any => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    logger.error('Error decoding JWT:', error);
+    return null;
+  }
+};
+
 // LocalStorage helper functions
 const getStoredDataResults = (): Array<{
   intentToken: string;
@@ -201,6 +219,11 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           resources,
         };
 
+        // Always log resources to console for debugging
+        console.log("[PassageProvider] Resources before payload creation:", resources);
+        console.log("[PassageProvider] Full payload being sent:", payload);
+        console.log("[PassageProvider] Stringified payload:", JSON.stringify(payload));
+
         logger.debug(
           "[PassageProvider] Generating intent token with payload:",
           {
@@ -212,6 +235,11 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               outputType: p.outputType,
               outputFormat: p.outputFormat,
             })),
+            integrationId,
+            products,
+            sessionArgs,
+            record,
+            resources,
           }
         );
 
@@ -275,10 +303,19 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   // Initialize method - generates intent token
   const initialize = useCallback(
     async (options: PassageInitializeOptions) => {
+      // Always log resources to console for debugging
+      console.log("[PassageProvider] Initializing with options:", options);
+      console.log("[PassageProvider] Resources received in initialize:", options.resources);
+
       logger.debug("[PassageProvider] Initializing with options:", {
         publishableKey: options.publishableKey,
         hasPrompts: !!options.prompts?.length,
         promptsCount: options.prompts?.length || 0,
+        integrationId: options.integrationId,
+        products: options.products,
+        sessionArgs: options.sessionArgs,
+        record: options.record,
+        resources: options.resources,
       });
 
       try {
@@ -897,9 +934,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     );
   }, []);
 
-  // Get data method
+  // Get data method - returns cached data from localStorage
   const getData = useCallback(async (): Promise<PassageStoredDataResult[]> => {
-    // Get stored data from localStorage
+    // Return cached data from localStorage
     const storedResults = getStoredDataResults();
 
     if (storedResults.length > 0) {
@@ -907,30 +944,47 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
         "[PassageProvider] Returning stored data results:",
         storedResults
       );
-      // Return the stored results with metadata
-      return storedResults.map((result) => ({
-        intentToken: result.intentToken,
-        timestamp: result.timestamp,
-        data: result.data.data,
-        prompts: result.data.prompts.map((prompt) => ({
-          name: prompt.name,
-          content: prompt.content,
-          outputType: prompt.outputType,
-          outputFormat: prompt.outputFormat,
-          response: prompt.response,
-        })),
-      }));
+      // Return the stored results with metadata, including extracted connectionId
+      return storedResults.map((result) => {
+        // Extract connectionId from JWT sessionId
+        const decoded = decodeJWT(result.intentToken);
+        const connectionId = decoded?.sessionId || undefined;
+
+        return {
+          intentToken: result.intentToken,
+          timestamp: result.timestamp,
+          data: result.data.data,
+          prompts: result.data.prompts.map((prompt) => ({
+            name: prompt.name,
+            content: prompt.content,
+            outputType: prompt.outputType,
+            outputFormat: prompt.outputFormat,
+            response: prompt.response,
+          })),
+          connectionId
+        };
+      });
     }
 
     // If no stored data and we have session data, return session data with current intent token
     if (sessionData) {
       logger.debug("[PassageProvider] Returning cached session data");
+
+      // Extract connectionId from current intent token
+      const currentToken = intentTokenRef.current;
+      let connectionId: string | undefined;
+      if (currentToken) {
+        const decoded = decodeJWT(currentToken);
+        connectionId = decoded?.sessionId;
+      }
+
       return [
         {
-          intentToken: intentTokenRef.current || "current-session",
+          intentToken: currentToken || "current-session",
           timestamp: new Date().toISOString(),
           data: sessionData.data,
           prompts: sessionData.prompts || [],
+          connectionId
         },
       ];
     }
@@ -945,12 +999,125 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     ];
   }, [sessionData]);
 
+  // Fetch resource method - fetches resources using current intent token
+  const fetchResource = useCallback(async (resourceNames: string[]): Promise<any> => {
+    const currentToken = intentTokenRef.current;
+
+    if (!currentToken) {
+      logger.error("[PassageProvider] No intent token available");
+      throw new Error("No intent token available. Please initialize first.");
+    }
+
+    // Decode JWT to get sessionId as connectionId and available resources
+    const decoded = decodeJWT(currentToken);
+    const connectionId = decoded?.sessionId;
+    const tokenResources = decoded?.resources || {};
+
+    if (!connectionId) {
+      logger.error("[PassageProvider] Could not extract sessionId from intent token");
+      throw new Error("Invalid intent token - no sessionId found");
+    }
+
+    logger.debug("[PassageProvider] Decoded token resources:", tokenResources);
+    logger.debug("[PassageProvider] Requested resources:", resourceNames);
+
+    // Filter requested resources to only those defined in the token
+    const availableResources = resourceNames.filter(resource => {
+      // Extract base resource name (e.g., "trip-read" -> "trip")
+      const baseName = resource.replace(/-read$/, '').replace(/-write$/, '');
+      const accessType = resource.includes('-write') ? 'write' : 'read';
+
+      // Check if this resource and access type exists in token
+      const isAvailable = tokenResources[baseName] && tokenResources[baseName][accessType];
+
+      if (!isAvailable) {
+        logger.warn(`[PassageProvider] Resource ${resource} not available in token. Available resources:`, tokenResources);
+      }
+
+      return isAvailable;
+    });
+
+    if (availableResources.length === 0) {
+      logger.warn("[PassageProvider] No valid resources to fetch from those requested");
+      return [];
+    }
+
+    logger.debug("[PassageProvider] Fetching available resources", {
+      connectionId,
+      resources: availableResources,
+      hasIntentToken: !!currentToken
+    });
+
+    try {
+      const apiUrl = config.apiUrl || DEFAULT_API_BASE_URL;
+      const fetchPromises = availableResources.map(async (resource) => {
+        // Extract resource name from the value (e.g., "trip-read" -> "trip")
+        let resourceName = resource.replace(/-read$/, '').replace(/-write$/, '');
+        const originalResourceName = resourceName;
+
+        // Special cases for API endpoint naming:
+        // - "trip" should be pluralized to "trips"
+        // - "accountInfo" should be "account-info"
+        if (resourceName === 'trip') {
+          resourceName = 'trips';
+        } else if (resourceName === 'accountInfo') {
+          resourceName = 'account-info';
+        }
+
+        const url = `${apiUrl}/connections/${connectionId}/${resourceName}?limit=1000`;
+
+        logger.debug(`[PassageProvider] Fetching resource ${resourceName} from: ${url}`);
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'x-intent-token': currentToken,
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          logger.error(`[PassageProvider] Failed to fetch ${resourceName}: ${response.status} - ${errorText}`);
+          return null;
+        }
+
+        const data = await response.json();
+        logger.debug(`[PassageProvider] Successfully fetched ${resourceName} data`);
+
+        return {
+          resourceName: originalResourceName, // Return the original name for clarity
+          data
+        };
+      });
+
+      const results = await Promise.all(fetchPromises);
+      const validResults = results.filter(r => r !== null);
+
+      // Store in localStorage for future retrieval
+      if (currentToken && validResults.length > 0) {
+        storeDataResult(currentToken, {
+          data: validResults,
+          prompts: sessionData?.prompts || []
+        });
+      }
+
+      logger.debug("[PassageProvider] Returning fetched resource data:", validResults);
+      return validResults;
+
+    } catch (error) {
+      logger.error("[PassageProvider] Error fetching resources:", error);
+      throw error;
+    }
+  }, [sessionData, config.apiUrl]);
+
   const contextValue: PassageContextValue = {
     initialize,
     open,
     close,
     disconnect,
     getData,
+    fetchResource,
     intentToken,
   };
 

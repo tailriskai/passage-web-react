@@ -9,8 +9,11 @@ importers:
   .:
     dependencies:
       '@getpassage/react-js':
-        specifier: file:..
-        version: file:..(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: file:../getpassage-react-js-0.0.18.tgz
+        version: file:../getpassage-react-js-0.0.18.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tanstack/react-table':
+        specifier: ^8.21.3
+        version: 8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -255,8 +258,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@getpassage/react-js@file:..':
-    resolution: {directory: .., type: directory}
+  '@getpassage/react-js@file:../getpassage-react-js-0.0.18.tgz':
+    resolution: {integrity: sha512-htlFMZk65OaPYYUFGP7OD+aw3q8fCNn5VpmWUUCqyHf/dQXcWu6oecp/Eh+kOrHtt6mO8lO9lEnoB2FC7EpdyQ==, tarball: file:../getpassage-react-js-0.0.18.tgz}
+    version: 0.0.18
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
@@ -279,6 +283,17 @@ packages:
 
   '@socket.io/component-emitter@3.1.2':
     resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
+
+  '@tanstack/react-table@8.21.3':
+    resolution: {integrity: sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
+  '@tanstack/table-core@8.21.3':
+    resolution: {integrity: sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg==}
+    engines: {node: '>=12'}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -823,7 +838,7 @@ snapshots:
   '@esbuild/win32-x64@0.18.20':
     optional: true
 
-  '@getpassage/react-js@file:..(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@getpassage/react-js@file:../getpassage-react-js-0.0.18.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       framer-motion: 11.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       jwt-decode: 4.0.0
@@ -854,6 +869,14 @@ snapshots:
   '@rolldown/pluginutils@1.0.0-beta.19': {}
 
   '@socket.io/component-emitter@3.1.2': {}
+
+  '@tanstack/react-table@8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@tanstack/table-core': 8.21.3
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  '@tanstack/table-core@8.21.3': {}
 
   '@types/babel__core@7.20.5':
     dependencies:

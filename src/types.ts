@@ -199,6 +199,11 @@ export interface PassageStoredDataResult extends PassageDataResult {
    * When this data was collected
    */
   timestamp?: string;
+
+  /**
+   * The connection ID if available
+   */
+  connectionId?: string;
 }
 
 export interface PassageSuccessData {
@@ -256,12 +261,20 @@ export interface ConnectionUpdate {
   }[];
 }
 
+export interface PassageDataOptions {
+  intentToken?: string;
+  connectionId?: string;
+  resources?: string[];
+  fetchFromApi?: boolean;
+}
+
 export interface PassageContextValue {
   initialize: (options: PassageInitializeOptions) => Promise<void>;
   open: (options?: PassageOpenOptions) => Promise<void>;
   close: () => Promise<void>;
   disconnect: () => Promise<void>;
   getData: () => Promise<PassageStoredDataResult[]>;
+  fetchResource: (resourceNames: string[]) => Promise<any>;
   intentToken: string | null;
 }
 

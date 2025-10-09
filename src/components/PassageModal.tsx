@@ -47,17 +47,9 @@ export const PassageModal: React.FC<PassageModalProps> = ({
     [customStyles]
   );
 
-  // Track iframe load state to prevent flicker
-  const [iframeLoaded, setIframeLoaded] = useState(false);
+  // Track iframe load state
+  const [iframeLoaded, setIframeLoaded] = useState(true); // Default to true to hide loading
   const previousIntentToken = useRef<string | null>(null);
-
-  // Reset iframe loaded state when intent token changes
-  useEffect(() => {
-    if (intentToken !== previousIntentToken.current) {
-      setIframeLoaded(false);
-      previousIntentToken.current = intentToken;
-    }
-  }, [intentToken]);
 
   // Listen for dimension updates and close events from iframe
   useEffect(() => {
@@ -122,9 +114,6 @@ export const PassageModal: React.FC<PassageModalProps> = ({
     intentToken,
   });
 
-  // Show loading state when no intent token yet
-  const isInitializing = !intentToken;
-
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.95, y: 20 },
@@ -172,99 +161,19 @@ export const PassageModal: React.FC<PassageModalProps> = ({
           ...mergedStyles.content,
         }}
       >
-        {isInitializing ? (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              width: "100%",
-              height: "100%",
-              backgroundColor: "#F9FAFB",
-            }}
-          >
-            <div
-              style={{
-                textAlign: "center",
-              }}
-            >
-              {/* Loading spinner */}
-              <div
-                className="passage-loading-spinner"
-                style={{
-                  width: "48px",
-                  height: "48px",
-                  margin: "0 auto 16px",
-                  border: "3px solid #E5E7EB",
-                  borderTopColor: "#3B82F6",
-                  borderRadius: "50%",
-                  animation: "passage-spin 1s linear infinite",
-                }}
-              />
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "14px",
-                  color: "#6B7280",
-                }}
-              >
-                Establishing secure connection...
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Show loading spinner until iframe loads */}
-            {!iframeLoaded && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: "#F9FAFB",
-                  zIndex: 1,
-                }}
-              >
-                <div style={{ textAlign: "center" }}>
-                  <div
-                    className="passage-loading-spinner"
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      margin: "0 auto 16px",
-                      border: "3px solid #E5E7EB",
-                      borderTopColor: "#3B82F6",
-                      borderRadius: "50%",
-                      animation: "passage-spin 1s linear infinite",
-                    }}
-                  />
-                  <p style={{ margin: 0, fontSize: "14px", color: "#6B7280" }}>
-                    Loading...
-                  </p>
-                </div>
-              </div>
-            )}
-            <iframe
-              src={`${baseUrl}/connect?intentToken=${intentToken || ""}&userAgent=${USER_AGENT}&modal=false`}
-              onLoad={() => setIframeLoaded(true)}
-              style={{
-                width: "100%",
-                height: "100%",
-                border: "none",
-                display: "block",
-                visibility: iframeLoaded ? "visible" : "hidden",
-              }}
-              title="Passage Connect Flow"
-              allow="clipboard-read; clipboard-write"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-            />
-          </>
-        )}
+        <iframe
+          src={`${baseUrl}/connect?intentToken=${intentToken || ""}&userAgent=${USER_AGENT}&modal=false`}
+          onLoad={() => setIframeLoaded(true)}
+          style={{
+            width: "100%",
+            height: "100%",
+            border: "none",
+            display: "block",
+          }}
+          title="Passage Connect Flow"
+          allow="clipboard-read; clipboard-write"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+        />
       </motion.div>
     );
   }
@@ -294,172 +203,25 @@ export const PassageModal: React.FC<PassageModalProps> = ({
           alignItems: "center",
           justifyContent: "center",
           zIndex: 9999,
-          pointerEvents: isInitializing || !iframeLoaded ? "auto" : "none", // Allow interactions to pass through to iframe when loaded
+          pointerEvents: "none", // Allow interactions to pass through to iframe
         }}
       >
-        {isInitializing ? (
-          // Show loading state with backdrop when initializing
-          <>
-            {/* Loading backdrop */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-                zIndex: 1,
-              }}
-              onClick={onClose}
-            />
-            {/* Loading content */}
-            <motion.div
-              style={{
-                position: "relative",
-                zIndex: 2,
-                width: "400px",
-                height: "300px",
-                backgroundColor: "#FFFFFF",
-                borderRadius: "12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow:
-                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-                pointerEvents: "auto",
-              }}
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <div style={{ textAlign: "center" }}>
-                {/* Loading spinner */}
-                <div
-                  className="passage-loading-spinner"
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    margin: "0 auto 16px",
-                    border: "3px solid #E5E7EB",
-                    borderTopColor: "#3B82F6",
-                    borderRadius: "50%",
-                    animation: "passage-spin 1s linear infinite",
-                  }}
-                />
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: "14px",
-                    color: "#6B7280",
-                  }}
-                >
-                  Establishing secure connection...
-                </p>
-              </div>
-
-              {/* Close button for loading state */}
-              <button
-                onClick={onClose}
-                style={{
-                  position: "absolute",
-                  top: "16px",
-                  right: "16px",
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                  border: "none",
-                  color: "white",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "18px",
-                  fontWeight: "bold",
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-                }}
-              >
-                ×
-              </button>
-            </motion.div>
-          </>
-        ) : (
-          <>
-            {/* Show loading spinner until iframe loads */}
-            {!iframeLoaded && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                style={{
-                  position: "fixed",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  zIndex: 10000,
-                }}
-              >
-                <div
-                  style={{
-                    backgroundColor: "white",
-                    borderRadius: "16px",
-                    padding: "24px",
-                    textAlign: "center",
-                    boxShadow:
-                      "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-                  }}
-                >
-                  <div
-                    className="passage-loading-spinner"
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      margin: "0 auto 16px",
-                      border: "3px solid #E5E7EB",
-                      borderTopColor: "#3B82F6",
-                      borderRadius: "50%",
-                      animation: "passage-spin 1s linear infinite",
-                    }}
-                  />
-                  <p style={{ margin: 0, fontSize: "14px", color: "#6B7280" }}>
-                    Loading...
-                  </p>
-                </div>
-              </motion.div>
-            )}
-            {/* Render fullscreen iframe - let ConnectFlow handle the modal */}
-            <iframe
-              src={`${baseUrl}/connect?intentToken=${intentToken || ""}&userAgent=${USER_AGENT}&modal=true`}
-              onLoad={() => setIframeLoaded(true)}
-              style={{
-                width: "100vw",
-                height: "100vh",
-                border: "none",
-                display: "block",
-                backgroundColor: "transparent",
-                pointerEvents: "auto", // Enable interactions with iframe content
-                visibility: iframeLoaded ? "visible" : "hidden",
-              }}
-              title="Passage Connect Flow"
-              allow="clipboard-read; clipboard-write"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-            />
-          </>
-        )}
+        {/* Render fullscreen iframe - let ConnectFlow handle the modal */}
+        <iframe
+          src={`${baseUrl}/connect?intentToken=${intentToken || ""}&userAgent=${USER_AGENT}&modal=true`}
+          onLoad={() => setIframeLoaded(true)}
+          style={{
+            width: "100vw",
+            height: "100vh",
+            border: "none",
+            display: "block",
+            backgroundColor: "transparent",
+            pointerEvents: "auto", // Enable interactions with iframe content
+          }}
+          title="Passage Connect Flow"
+          allow="clipboard-read; clipboard-write"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+        />
       </motion.div>
 
       {/* CSS Animations */}

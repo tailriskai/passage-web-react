@@ -11,9 +11,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@getpassage/react-js": "file:../getpassage-react-js-0.0.18.tgz",
+    "@tanstack/react-table": "^8.21.3",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@getpassage/react-js": "file:.."
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

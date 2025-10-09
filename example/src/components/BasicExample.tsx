@@ -9,6 +9,7 @@ import {
 } from "@getpassage/react-js";
 import LogDisplay from "./LogDisplay";
 import JsonExplorerMulti from "./JsonExplorerMulti";
+import TanStackDataTable from "./TanStackDataTable";
 
 const BasicExample: React.FC = () => {
   const passage = usePassage();
@@ -52,6 +53,8 @@ const BasicExample: React.FC = () => {
   const [integrationsLoading, setIntegrationsLoading] = useState(true);
   const [formattedJsonData, setFormattedJsonData] = useState<string>("");
   const [connectionResults, setConnectionResults] = useState<any[]>([]);
+  const [fetchedResourceData, setFetchedResourceData] = useState<any[]>([]);
+  const [showResultAsTable, setShowResultAsTable] = useState(true);
 
   // Function to get available resources for the selected integration
   const getAvailableResources = (integrationSlug: string) => {
@@ -164,21 +167,44 @@ const BasicExample: React.FC = () => {
 
   // Function to build the resources structure from form field values
   const buildResourcesFromFormData = () => {
-    const resources: any = {};
+    const resourcesObj: any = {};
 
-    // Group form fields by resource name and operation
-    dynamicFormFields.forEach((field) => {
-      const resourceName = field.resourceName;
-      const operation = field.operation;
+    // First, add all selected resources (even those without form fields)
+    resources.forEach((resourceValue) => {
+      // Extract resource name and operation from value (e.g., "trip-read" -> "trip", "read")
+      const isWrite = resourceValue.endsWith('-write');
+      const operation = isWrite ? 'write' : 'read';
+      // Remove the operation suffix and convert to camelCase
+      let resourceName = resourceValue.replace(/-read$/, '').replace(/-write$/, '');
+
+      // Convert kebab-case to camelCase (e.g., "account-info" -> "accountInfo")
+      resourceName = resourceName.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
 
       // Initialize resource if not exists
-      if (!resources[resourceName]) {
-        resources[resourceName] = {};
+      if (!resourcesObj[resourceName]) {
+        resourcesObj[resourceName] = {};
+      }
+
+      // Initialize operation with empty object
+      if (!resourcesObj[resourceName][operation]) {
+        resourcesObj[resourceName][operation] = {};
+      }
+    });
+
+    // Then add form field values for resources that have them
+    dynamicFormFields.forEach((field) => {
+      // Convert PascalCase to camelCase (e.g., "Trip" -> "trip", "AccountInfo" -> "accountInfo")
+      const resourceName = field.resourceName.charAt(0).toLowerCase() + field.resourceName.slice(1);
+      const operation = field.operation;
+
+      // Initialize resource if not exists (shouldn't happen if resources array is properly set)
+      if (!resourcesObj[resourceName]) {
+        resourcesObj[resourceName] = {};
       }
 
       // Initialize operation if not exists
-      if (!resources[resourceName][operation]) {
-        resources[resourceName][operation] = {};
+      if (!resourcesObj[resourceName][operation]) {
+        resourcesObj[resourceName][operation] = {};
       }
 
       // Add form field values for this operation
@@ -189,14 +215,14 @@ const BasicExample: React.FC = () => {
             formFieldValues[fieldKey] !== undefined &&
             formFieldValues[fieldKey] !== ""
           ) {
-            resources[resourceName][operation][propName] =
+            resourcesObj[resourceName][operation][propName] =
               formFieldValues[fieldKey];
           }
         });
       }
     });
 
-    return resources;
+    return resourcesObj;
   };
 
   // Fetch integrations from API
@@ -434,7 +460,7 @@ const BasicExample: React.FC = () => {
         products: resources.length > 0 ? resources : undefined,
         resources:
           Object.keys(resourcesData).length > 0 ? resourcesData : undefined,
-        onConnectionComplete: (data: PassageSuccessData) => {
+        onConnectionComplete: async (data: PassageSuccessData) => {
           addLog(
             `✅ Connection complete! Connection ID: ${data.connectionId}`,
             "success"
@@ -451,6 +477,12 @@ const BasicExample: React.FC = () => {
               data: data,
             },
           ]);
+
+          // Automatically fetch resources if any are selected
+          if (resources.length > 0) {
+            addLog(`🔄 Auto-fetching ${resources.length} selected resource(s)...`, "info");
+            await handleFetchResources();
+          }
         },
         onError: (error: PassageErrorData) => {
           addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
@@ -520,7 +552,7 @@ const BasicExample: React.FC = () => {
     try {
       const openOptions: any = {
         presentationStyle,
-        onConnectionComplete: (data: PassageSuccessData) => {
+        onConnectionComplete: async (data: PassageSuccessData) => {
           addLog(
             `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
             "success"
@@ -534,6 +566,12 @@ const BasicExample: React.FC = () => {
               data: data,
             },
           ]);
+
+          // Automatically fetch resources if any are selected
+          if (resources.length > 0) {
+            addLog(`🔄 Auto-fetching ${resources.length} selected resource(s)...`, "info");
+            await handleFetchResources();
+          }
         },
         onError: (error: PassageErrorData) => {
           addLog(
@@ -657,7 +695,7 @@ const BasicExample: React.FC = () => {
 
       const openOptions: any = {
         presentationStyle,
-        onConnectionComplete: (data: PassageSuccessData) => {
+        onConnectionComplete: async (data: PassageSuccessData) => {
           addLog(
             `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
             "success"
@@ -671,6 +709,12 @@ const BasicExample: React.FC = () => {
               data: data,
             },
           ]);
+
+          // Automatically fetch resources if any are selected
+          if (resources.length > 0) {
+            addLog(`🔄 Auto-fetching ${resources.length} selected resource(s)...`, "info");
+            await handleFetchResources();
+          }
         },
         onError: (error: PassageErrorData) => {
           addLog(
@@ -742,6 +786,37 @@ const BasicExample: React.FC = () => {
     }
   };
 
+  const handleFetchResources = async () => {
+    try {
+      if (resources.length === 0) {
+        addLog("⚠️ No resources selected to fetch", "info");
+        return;
+      }
+
+      addLog(`🔄 Fetching ${resources.length} resource(s): ${resources.join(', ')}...`, "info");
+
+      const data = await passage.fetchResource(resources);
+
+      if (data && data.length > 0) {
+        setFetchedResourceData(data);
+        addLog(`✅ Successfully fetched ${data.length} resource(s)`, "success");
+
+        // Log details of each resource
+        data.forEach((resource: any) => {
+          if (resource.resourceName && resource.data) {
+            const itemCount = Array.isArray(resource.data) ? resource.data.length : 1;
+            addLog(`  • ${resource.resourceName}: ${itemCount} item(s)`, "success");
+          }
+        });
+      } else {
+        addLog("⚠️ No data returned from resources", "info");
+      }
+    } catch (error) {
+      addLog(`❌ Error fetching resources: ${error}`, "error");
+      console.error('[handleFetchResources] Error:', error);
+    }
+  };
+
   const clearLogs = () => {
     setLogs([]);
     setPromptResults([]);
@@ -749,6 +824,10 @@ const BasicExample: React.FC = () => {
 
   const clearConnectionResults = () => {
     setConnectionResults([]);
+  };
+
+  const clearFetchedResources = () => {
+    setFetchedResourceData([]);
   };
 
   return (
@@ -781,6 +860,16 @@ const BasicExample: React.FC = () => {
               setSelectedIntegration(newIntegration);
               setIntegrationId(newIntegration);
               updateUrlForIntegration(newIntegration);
+
+              // Reset resources to only include those available for the new integration
+              const availableResourceValues = getAvailableResources(newIntegration).map((r: any) => r.value);
+              const filteredResources = resources.filter(r => availableResourceValues.includes(r));
+
+              // Only update if there's a difference
+              if (filteredResources.length !== resources.length) {
+                setResources(filteredResources);
+                updateUrlForResources(filteredResources);
+              }
             }}
             disabled={isInitialized || integrationsLoading}
             style={{
@@ -1262,6 +1351,14 @@ const BasicExample: React.FC = () => {
 
           <button
             className="button secondary"
+            onClick={handleFetchResources}
+            disabled={!isInitialized || resources.length === 0}
+          >
+            Fetch Resources
+          </button>
+
+          <button
+            className="button secondary"
             onClick={handleReset}
             style={{ marginLeft: "auto" }}
           >
@@ -1290,6 +1387,171 @@ const BasicExample: React.FC = () => {
                 <strong>{result.name}:</strong> {result.content}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Fetched Resources Display */}
+        {fetchedResourceData.length > 0 && (
+          <div style={{ marginBottom: "1.5rem" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "1rem",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <span style={{ fontWeight: 600 }}>Fetched Resource Data:</span>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showResultAsTable}
+                    onChange={(e) => setShowResultAsTable(e.target.checked)}
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      cursor: "pointer",
+                    }}
+                  />
+                  Show as table
+                </label>
+              </div>
+              <button
+                className="button secondary"
+                onClick={clearFetchedResources}
+                style={{ padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+              >
+                Clear
+              </button>
+            </div>
+
+            {showResultAsTable ? (
+              <div>
+                {fetchedResourceData.map((resourceData, index) => {
+                  // Check if we have a data array to display as table
+                  const dataArray = resourceData.data?.data || (Array.isArray(resourceData.data) ? resourceData.data : null);
+
+                  if (dataArray && Array.isArray(dataArray) && dataArray.length > 0) {
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          marginBottom: "1.5rem",
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: "0.75rem 1rem",
+                            background: "#f9fafb",
+                            borderTop: "1px solid #e2e8f0",
+                            borderLeft: "1px solid #e2e8f0",
+                            borderRight: "1px solid #e2e8f0",
+                            borderRadius: "8px 8px 0 0",
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <div>
+                            {resourceData.resourceName}
+                            <span
+                              style={{
+                                fontSize: "0.875rem",
+                                color: "#6b7280",
+                                fontWeight: 400,
+                                marginLeft: "0.5rem",
+                              }}
+                            >
+                              ({dataArray.length} items)
+                            </span>
+                          </div>
+                          {resourceData.data?.meta && (
+                            <span
+                              style={{
+                                fontSize: "0.75rem",
+                                color: "#6b7280",
+                                fontWeight: 400,
+                              }}
+                            >
+                              Page {resourceData.data.meta.page} of {resourceData.data.meta.totalPages} • Total: {resourceData.data.meta.total}
+                            </span>
+                          )}
+                        </div>
+                        <TanStackDataTable data={dataArray} maxHeight="500px" />
+                      </div>
+                    );
+                  }
+
+                  // Fallback to JSON display if not an array
+                  return (
+                    <div
+                      key={index}
+                      style={{
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        marginBottom: "1rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: "0.75rem 1rem",
+                          background: "#f9fafb",
+                          borderBottom: "1px solid #e2e8f0",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {resourceData.resourceName}
+                        <span
+                          style={{
+                            fontSize: "0.875rem",
+                            color: "#6b7280",
+                            fontWeight: 400,
+                            marginLeft: "0.5rem",
+                          }}
+                        >
+                          (Object)
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          padding: "1rem",
+                          maxHeight: "400px",
+                          overflowY: "auto",
+                        }}
+                      >
+                        <pre
+                          style={{
+                            margin: 0,
+                            fontSize: "0.875rem",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {JSON.stringify(resourceData.data, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <JsonExplorerMulti
+                data={fetchedResourceData}
+                title="Fetched Resources (JSON)"
+                maxHeight="500px"
+              />
+            )}
           </div>
         )}
 
