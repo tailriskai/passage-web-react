@@ -14,6 +14,9 @@ importers:
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      framer-motion:
+        specifier: ^12.23.24
+        version: 12.23.24(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -259,7 +262,14 @@ packages:
     os: [win32]
 
   '@getpassage/react-js@file:../getpassage-react-js-0.0.18.tgz':
-    resolution: {integrity: sha512-htlFMZk65OaPYYUFGP7OD+aw3q8fCNn5VpmWUUCqyHf/dQXcWu6oecp/Eh+kOrHtt6mO8lO9lEnoB2FC7EpdyQ==, tarball: file:../getpassage-react-js-0.0.18.tgz}
+    resolution: {integrity: sha512-TXY272crxrAA1FO6uRldcKSyNrWSvjm3MnPS66qDGkbXcTyCc+0biCGqk/V0uneBnUjzhEIiYUPfBr3wyKNwmw==, tarball: file:../getpassage-react-js-0.0.18.tgz}
+    version: 0.0.18
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
+  '@getpassage/react-js@file:getpassage-react-js-0.0.18.tgz':
+    resolution: {integrity: sha512-6uc5M/etx+oKYNf0oryNhCXuFm54qAe3AVFaE9DiU+EYnlUnnKWvquW73cotRWs2FPAKzuzKMgARumm0S3gTMA==, tarball: file:getpassage-react-js-0.0.18.tgz}
     version: 0.0.18
     peerDependencies:
       react: '>=16.8.0'
@@ -425,6 +435,20 @@ packages:
       react-dom:
         optional: true
 
+  framer-motion@12.23.24:
+    resolution: {integrity: sha512-HMi5HRoRCTou+3fb3h9oTLyJGBxHfW+HnNE25tAXOvVx/IvwMHK0cx7IR4a2ZU6sh3IX1Z+4ts32PcYBOqka8w==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -473,8 +497,14 @@ packages:
   motion-dom@11.18.1:
     resolution: {integrity: sha512-g76KvA001z+atjfxczdRtw/RXOM3OMSdd1f4DL77qCTF/+avrRJiawSG4yDibEQ215sr9kpinSlX2pCTJ9zbhw==}
 
+  motion-dom@12.23.23:
+    resolution: {integrity: sha512-n5yolOs0TQQBRUFImrRfs/+6X4p3Q4n1dUEqt/H58Vx7OW6RF+foWEgmTVDhIWJIMXOuNNL0apKH2S16en9eiA==}
+
   motion-utils@11.18.1:
     resolution: {integrity: sha512-49Kt+HKjtbJKLtgO/LKj9Ld+6vw9BjH5d9sc40R/kVyH8GLAXgT42M2NnuPcJNuA3s9ZfZBUcwIgpmZWGEE+hA==}
+
+  motion-utils@12.23.6:
+    resolution: {integrity: sha512-eAWoPgr4eFEOFfg2WjIsMoqJTW6Z8MTUCgn/GZ3VRpClWBdnbjryiA3ZSNLyxCTmCQx4RmYX6jX1iWHbenUPNQ==}
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
@@ -523,6 +553,11 @@ packages:
     resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
     peerDependencies:
       react: ^18.3.1
+
+  react-international-phone@4.6.0:
+    resolution: {integrity: sha512-lzj5fLfACRKeaitggFIHWl6LM69aO2uivJbEVyVBjAe0+kkvZjToduqnK2/dm9Zu+l8XfVjd+Fn1ZAyG/t8XAg==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   react-refresh@0.17.0:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
@@ -840,6 +875,22 @@ snapshots:
 
   '@getpassage/react-js@file:../getpassage-react-js-0.0.18.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
+      '@getpassage/react-js': file:getpassage-react-js-0.0.18.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      framer-motion: 11.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      jwt-decode: 4.0.0
+      qrcode: 1.5.4
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      react-international-phone: 4.6.0(react@18.3.1)
+      socket.io-client: 4.8.1
+    transitivePeerDependencies:
+      - '@emotion/is-prop-valid'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@getpassage/react-js@file:getpassage-react-js-0.0.18.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
       framer-motion: 11.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       jwt-decode: 4.0.0
       qrcode: 1.5.4
@@ -1026,6 +1077,15 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
+  framer-motion@12.23.24(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      motion-dom: 12.23.23
+      motion-utils: 12.23.6
+      tslib: 2.8.1
+    optionalDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
   fsevents@2.3.3:
     optional: true
 
@@ -1059,7 +1119,13 @@ snapshots:
     dependencies:
       motion-utils: 11.18.1
 
+  motion-dom@12.23.23:
+    dependencies:
+      motion-utils: 12.23.6
+
   motion-utils@11.18.1: {}
+
+  motion-utils@12.23.6: {}
 
   ms@2.1.3: {}
 
@@ -1100,6 +1166,10 @@ snapshots:
       loose-envify: 1.4.0
       react: 18.3.1
       scheduler: 0.23.2
+
+  react-international-phone@4.6.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
 
   react-refresh@0.17.0: {}
 

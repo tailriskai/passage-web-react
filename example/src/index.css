@@ -10,9 +10,9 @@ body {
     "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #ffffff;
   min-height: 100vh;
-  color: #333;
+  color: #333333;
 }
 
 .container {
@@ -24,29 +24,43 @@ body {
 .header {
   text-align: center;
   margin-bottom: 3rem;
-  color: white;
+  color: #333;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 2rem;
 }
 
 .header h1 {
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #1a1a1a;
 }
 
 .header p {
   font-size: 1.2rem;
-  opacity: 0.9;
+  color: #666;
 }
 
-.examples-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 2rem;
+.examples-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
   margin-bottom: 3rem;
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
+}
+
+.example-section {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.example-section h2 {
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
 }
 
 .example-card {

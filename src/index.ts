@@ -1,8 +1,23 @@
+// Core Functions
+export * from "./core/passage";
+export * from "./core/shortcode";
+export * from "./core/intentTokenLink";
+
 // Components
 export { PassageProvider } from "./Provider";
+export { QRCode } from "./components/QRCode";
+export type { QRCodeProps } from "./components/QRCode";
+export { AppClipPage } from "./components/AppClipPage";
+export type { AppClipPageProps } from "./components/AppClipPage";
 
 // Hooks
 export { usePassage } from "./usePassage";
+export { useIntentToken } from "./hooks/useIntentToken";
+export { useShortCode } from "./hooks/useShortCode";
+export { usePassageEvents, dispatchPassageEvent } from "./hooks/usePassageEvents";
+
+// Intent Token Utilities
+export * from "./utils/intentToken";
 
 // WebSocket Manager - for backward compatibility
 export { WebSocketManager } from "./websocket-manager";

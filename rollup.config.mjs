@@ -2,6 +2,8 @@ import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import typescript from "@rollup/plugin-typescript";
 import peerDepsExternal from "rollup-plugin-peer-deps-external";
+import postcss from "rollup-plugin-postcss";
+import image from "@rollup/plugin-image";
 
 export default [
   {
@@ -25,6 +27,16 @@ export default [
         preferBuiltins: false,
       }),
       commonjs(),
+      image(),
+      postcss({
+        // Only apply CSS modules to .module.css files
+        modules: {
+          generateScopedName: '[name]-module_[local]__[hash:base64:5]',
+        },
+        autoModules: true, // Automatically detect .module.css files
+        extract: false,
+        inject: true,
+      }),
       typescript({
         tsconfig: "./tsconfig.json",
         exclude: ["**/*.test.ts", "**/*.test.tsx"],

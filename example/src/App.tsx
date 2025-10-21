@@ -1,33 +1,60 @@
+import { PassageProvider, AppClipPage } from "@getpassage/react-js";
+import { useEffect, useState } from "react";
 import BasicExample from "./components/BasicExample";
 
 function App() {
+  const [shortCodeFromUrl, setShortCodeFromUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check for shortCode in URL params
+    const params = new URLSearchParams(window.location.search);
+    const shortCode = params.get('shortCode');
+    if (shortCode) {
+      setShortCodeFromUrl(shortCode);
+    }
+  }, []);
+
+  // If shortCode is in URL, show the AppClipPage
+  if (shortCodeFromUrl) {
+    return (
+      <PassageProvider>
+        <AppClipPage
+          shortCode={shortCodeFromUrl}
+          baseUrl="https://app.getpassage.com"
+        />
+      </PassageProvider>
+    );
+  }
+
   return (
-    <div className="container">
-      <header className="header">
-        <h1>Passage Web React SDK</h1>
-        <p>
-          Interactive examples demonstrating the Passage authentication flow
-        </p>
-      </header>
+    <PassageProvider>
+      <div className="container">
+        <header className="header">
+          <h1>Passage Web React SDK</h1>
+          <p>
+            Interactive examples demonstrating the Passage authentication flow
+          </p>
+        </header>
 
-      <div className="examples-grid">
-        <BasicExample />
+        <div className="examples-container">
+          <BasicExample />
+        </div>
+
+        <footer style={{ textAlign: "center", color: "#666", marginTop: "3rem", paddingTop: "2rem", borderTop: "1px solid #e0e0e0" }}>
+          <p>
+            Learn more about Passage at{" "}
+            <a
+              href="https://getpassage.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#4a5568", textDecoration: "underline" }}
+            >
+              getpassage.ai
+            </a>
+          </p>
+        </footer>
       </div>
-
-      <footer style={{ textAlign: "center", color: "white", opacity: 0.8 }}>
-        <p>
-          Learn more about Passage at{" "}
-          <a
-            href="https://getpassage.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "white", textDecoration: "underline" }}
-          >
-            getpassage.ai
-          </a>
-        </p>
-      </footer>
-    </div>
+    </PassageProvider>
   );
 }
 

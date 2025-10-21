@@ -47,6 +47,21 @@ export interface PassageConfig {
    * Custom styles for the modal
    */
   customStyles?: PassageModalStyles;
+
+  /**
+   * Integration ID for the connection
+   */
+  integrationId?: string;
+
+  /**
+   * Connection complete callback
+   */
+  onConnectionComplete?: (data: PassageSuccessData) => void;
+
+  /**
+   * Allow additional properties for extensibility
+   */
+  [key: string]: any;
 }
 
 export interface PassageModalStyles {

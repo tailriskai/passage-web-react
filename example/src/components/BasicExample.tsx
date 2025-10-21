@@ -6,6 +6,7 @@ import {
   PassagePrompt,
   PassagePromptResponse,
   DEFAULT_API_BASE_URL,
+  createIntentTokenLink,
 } from "@getpassage/react-js";
 import LogDisplay from "./LogDisplay";
 import JsonExplorerMulti from "./JsonExplorerMulti";
@@ -55,6 +56,8 @@ const BasicExample: React.FC = () => {
   const [connectionResults, setConnectionResults] = useState<any[]>([]);
   const [fetchedResourceData, setFetchedResourceData] = useState<any[]>([]);
   const [showResultAsTable, setShowResultAsTable] = useState(true);
+  const [createdShortCode, setCreatedShortCode] = useState<string>('');
+  const [isCreatingShortcode, setIsCreatingShortcode] = useState(false);
 
   // Function to get available resources for the selected integration
   const getAvailableResources = (integrationSlug: string) => {
@@ -861,6 +864,73 @@ const BasicExample: React.FC = () => {
     setFetchedResourceData([]);
   };
 
+  const handleCreateShortcode = async () => {
+    if (!publishableKey || !integrationId) {
+      addLog("❌ Please configure publishable key and integration ID first", "error");
+      return;
+    }
+
+    setIsCreatingShortcode(true);
+    setCreatedShortCode('');
+    addLog("🔄 Creating shortcode...", "info");
+
+    try {
+      // Build resources object based on selected resources
+      const requestResources: Record<string, Record<string, unknown>> = {};
+
+      resources.forEach((resourceValue) => {
+        const isWrite = resourceValue.endsWith("-write");
+        const operation = isWrite ? "write" : "read";
+        let resourceName = resourceValue
+          .replace(/-read$/, "")
+          .replace(/-write$/, "");
+
+        // Convert kebab-case to camelCase
+        resourceName = resourceName.replace(/-([a-z])/g, (g) =>
+          g[1].toUpperCase()
+        );
+
+        if (!requestResources[resourceName]) {
+          requestResources[resourceName] = {};
+        }
+
+        requestResources[resourceName][operation] = {};
+      });
+
+      const result = await createIntentTokenLink({
+        integrationId,
+        requestPayload: {
+          resources: requestResources,
+          returnUrl: window.location.origin
+        },
+        notes: 'Created from example app',
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+      }, publishableKey);
+
+      const shortcode = result.shortToken || result.shortCode;
+      if (shortcode) {
+        setCreatedShortCode(shortcode);
+        addLog(`✅ Shortcode created: ${shortcode}`, "success");
+        addLog(`📋 URL: ${window.location.origin}?shortCode=${shortcode}`, "info");
+      } else {
+        addLog("❌ Failed to get shortcode from response", "error");
+      }
+    } catch (error) {
+      addLog(`❌ Failed to create shortcode: ${error}`, "error");
+      console.error('[handleCreateShortcode] Error:', error);
+    } finally {
+      setIsCreatingShortcode(false);
+    }
+  };
+
+  const handleOpenShortcode = () => {
+    if (createdShortCode) {
+      const url = `${window.location.origin}?shortCode=${createdShortCode}`;
+      window.open(url, '_blank');
+      addLog(`🔗 Opened shortcode link in new tab: ${url}`, "info");
+    }
+  };
+
   return (
     <>
       <div className="example-card">
@@ -1399,6 +1469,67 @@ const BasicExample: React.FC = () => {
           >
             🔄 Reset
           </button>
+        </div>
+
+        {/* Shortcode Creation Section */}
+        <div style={{
+          marginTop: '1.5rem',
+          paddingTop: '1.5rem',
+          borderTop: '1px solid #e0e0e0'
+        }}>
+          <h4 style={{ marginBottom: '1rem', color: '#333' }}>🔗 Shortcode Creation</h4>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              className="button"
+              onClick={handleCreateShortcode}
+              disabled={isCreatingShortcode || !publishableKey || !integrationId}
+              style={{
+                background: isCreatingShortcode ? '#6c757d' : '#007bff',
+              }}
+            >
+              {isCreatingShortcode ? 'Creating...' : 'Create Shortcode'}
+            </button>
+
+            {createdShortCode && (
+              <>
+                <button
+                  className="button"
+                  onClick={handleOpenShortcode}
+                  style={{
+                    background: '#28a745',
+                  }}
+                >
+                  Open Shortcode Link →
+                </button>
+                <span style={{
+                  marginLeft: '1rem',
+                  padding: '0.5rem 1rem',
+                  background: '#d4edda',
+                  color: '#155724',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  fontFamily: 'monospace',
+                }}>
+                  {createdShortCode}
+                </span>
+              </>
+            )}
+          </div>
+          {createdShortCode && (
+            <div style={{
+              marginTop: '0.5rem',
+              fontSize: '0.875rem',
+              color: '#666',
+            }}>
+              URL: <code style={{
+                background: '#f8f9fa',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '3px'
+              }}>
+                {window.location.origin}?shortCode={createdShortCode}
+              </code>
+            </div>
+          )}
         </div>
 
         {promptResults.length > 0 && (
