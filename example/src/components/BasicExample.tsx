@@ -58,6 +58,7 @@ const BasicExample: React.FC = () => {
   const [showResultAsTable, setShowResultAsTable] = useState(true);
   const [createdShortCode, setCreatedShortCode] = useState<string>('');
   const [isCreatingShortcode, setIsCreatingShortcode] = useState(false);
+  const [maxUses, setMaxUses] = useState<number>(1);
 
   // Function to get available resources for the selected integration
   const getAvailableResources = (integrationSlug: string) => {
@@ -875,6 +876,11 @@ const BasicExample: React.FC = () => {
     addLog("🔄 Creating shortcode...", "info");
 
     try {
+      // Get API URL from query params or use default
+      const searchParams = new URLSearchParams(window.location.search);
+      const apiUrlFromQuery = searchParams.get("apiUrl");
+      const apiUrl = apiUrlFromQuery || DEFAULT_API_BASE_URL || "https://api.getpassage.ai";
+
       // Build resources object based on selected resources
       const requestResources: Record<string, Record<string, unknown>> = {};
 
@@ -897,15 +903,32 @@ const BasicExample: React.FC = () => {
         requestResources[resourceName][operation] = {};
       });
 
-      const result = await createIntentTokenLink({
-        integrationId,
-        requestPayload: {
-          resources: requestResources,
-          returnUrl: window.location.origin
-        },
-        notes: 'Created from example app',
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
-      }, publishableKey);
+      // Manually call the API instead of using createIntentTokenLink to ensure we use the correct apiUrl
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'Authorization': `Publishable ${publishableKey}`
+      };
+
+      const response = await fetch(`${apiUrl}/intent-token-links`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          integrationId,
+          requestPayload: {
+            resources: requestResources,
+            returnUrl: window.location.origin
+          },
+          notes: 'Created from example app',
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+          maxSuccessfulConnections: maxUses
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create intent token link: ${response.statusText}`);
+      }
+
+      const result = await response.json();
 
       const shortcode = result.shortToken || result.shortCode;
       if (shortcode) {
@@ -1479,6 +1502,26 @@ const BasicExample: React.FC = () => {
         }}>
           <h4 style={{ marginBottom: '1rem', color: '#333' }}>🔗 Shortcode Creation</h4>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ fontWeight: '500', color: '#666', whiteSpace: 'nowrap' }}>
+                Max uses:
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={maxUses}
+                onChange={(e) => setMaxUses(Math.max(1, parseInt(e.target.value) || 1))}
+                style={{
+                  width: '80px',
+                  padding: '0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '1rem',
+                  textAlign: 'center'
+                }}
+              />
+            </div>
+
             <button
               className="button"
               onClick={handleCreateShortcode}
