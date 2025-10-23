@@ -142,8 +142,8 @@ jobs:
       - name: Create tarball for release asset
         run: |
           pnpm pack
-          # Rename to a cleaner filename
-          mv *.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz
+          # Rename to a cleaner filename (pnpm pack creates getpassage-react-js-VERSION.tgz)
+          mv getpassage-react-js-${{ steps.version.outputs.new_version }}.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1

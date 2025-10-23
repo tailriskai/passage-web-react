@@ -34,7 +34,6 @@
   "author": "Passage",
   "license": "MIT",
   "dependencies": {
-    "@getpassage/react-js": "file:getpassage-react-js-0.0.18.tgz",
     "framer-motion": "^11.18.2",
     "jwt-decode": "^4.0.0",
     "qrcode": "^1.5.4",
