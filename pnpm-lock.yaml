@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@getpassage/react-js':
-        specifier: file:getpassage-react-js-0.0.18.tgz
-        version: file:getpassage-react-js-0.0.18.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       framer-motion:
         specifier: ^11.18.2
         version: 11.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -74,13 +71,6 @@ importers:
         version: 5.8.3
 
 packages:
-
-  '@getpassage/react-js@file:getpassage-react-js-0.0.18.tgz':
-    resolution: {integrity: sha512-TXY272crxrAA1FO6uRldcKSyNrWSvjm3MnPS66qDGkbXcTyCc+0biCGqk/V0uneBnUjzhEIiYUPfBr3wyKNwmw==, tarball: file:getpassage-react-js-0.0.18.tgz}
-    version: 0.0.18
-    peerDependencies:
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
 
   '@jridgewell/sourcemap-codec@1.5.4':
     resolution: {integrity: sha512-VT2+G1VQs/9oz078bLrYbecdZKs912zQlkelYpuf+SXF+QvZDYJlbx/LSx+meSAwdDFnF8FVXW92AVjjkVmgFw==}
@@ -946,21 +936,6 @@ packages:
     engines: {node: '>=8'}
 
 snapshots:
-
-  '@getpassage/react-js@file:getpassage-react-js-0.0.18.tgz(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      framer-motion: 11.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      jwt-decode: 4.0.0
-      qrcode: 1.5.4
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      react-international-phone: 4.6.0(react@18.3.1)
-      socket.io-client: 4.8.1
-    transitivePeerDependencies:
-      - '@emotion/is-prop-valid'
-      - bufferutil
-      - supports-color
-      - utf-8-validate
 
   '@jridgewell/sourcemap-codec@1.5.4': {}
 
