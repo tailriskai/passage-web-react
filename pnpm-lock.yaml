@@ -76,7 +76,7 @@ importers:
 packages:
 
   '@getpassage/react-js@file:getpassage-react-js-0.0.18.tgz':
-    resolution: {integrity: sha512-EY48CDkFmaHmsc+8GuuUNFLfAXXs2K9cTNZYd8ppfgwyAYuBs/MlIbUKpcf6Ii3dzDXQu7tL2qRokRQ9t/qndA==, tarball: file:getpassage-react-js-0.0.18.tgz}
+    resolution: {integrity: sha512-TXY272crxrAA1FO6uRldcKSyNrWSvjm3MnPS66qDGkbXcTyCc+0biCGqk/V0uneBnUjzhEIiYUPfBr3wyKNwmw==, tarball: file:getpassage-react-js-0.0.18.tgz}
     version: 0.0.18
     peerDependencies:
       react: '>=16.8.0'
