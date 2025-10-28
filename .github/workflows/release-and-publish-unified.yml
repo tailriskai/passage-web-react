@@ -134,8 +134,8 @@ jobs:
       - name: Create tarball for release asset
         run: |
           yarn pack
-          # Rename to a cleaner filename (yarn pack creates different output)
-          mv package.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz || mv getpassage-react-js-${{ steps.version.outputs.new_version }}.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz
+          # Rename to a cleaner filename (yarn pack creates different output with v prefix)
+          mv package.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz || mv getpassage-react-js-v${{ steps.version.outputs.new_version }}.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
