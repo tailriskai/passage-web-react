@@ -1,5 +1,4 @@
 import { logger } from "./logger";
-import { DEFAULT_WEB_BASE_URL } from "./config";
 
 // Analytics event types - all events start with SDK_
 export const ANALYTICS_EVENTS = {

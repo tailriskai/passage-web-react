@@ -10,6 +10,12 @@ export interface ShortCodeConfig {
   shortCode: string;
   intentToken: string;
   integrationName: string;
+  logoUrl?: string;
+  colorPrimary?: string;
+  colorBackground?: string;
+  colorCardBackground?: string;
+  colorText?: string;
+  colorTextSecondary?: string;
 }
 
 export interface IntentTokenResponse {
@@ -26,7 +32,7 @@ export interface IntentTokenResponse {
  */
 export async function resolveShortCode(shortCode: string): Promise<IntentTokenResponse> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     logger.info('[ShortCode] Resolving short code:', shortCode);
@@ -92,7 +98,7 @@ export async function validateIntentToken(
 
     if (verify) {
       const config = getConfig();
-      const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+      const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
       // Verify with server
       const response = await fetch(`${apiUrl}/intent-token/validate`, {
@@ -119,7 +125,7 @@ export async function validateIntentToken(
  */
 export async function getShortCodeConfig(shortCode: string): Promise<ShortCodeConfig | null> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     const response = await fetch(
@@ -136,7 +142,13 @@ export async function getShortCodeConfig(shortCode: string): Promise<ShortCodeCo
     return {
       shortCode: data.shortCode,
       intentToken: data.intentToken || '',
-      integrationName: data.integrationName || 'account'
+      integrationName: data.integrationName || 'account',
+      logoUrl: data.logoUrl,
+      colorPrimary: data.colorPrimary,
+      colorBackground: data.colorBackground,
+      colorCardBackground: data.colorCardBackground,
+      colorText: data.colorText,
+      colorTextSecondary: data.colorTextSecondary
     };
   } catch (error) {
     logger.error('[ShortCode] Failed to get short code config:', error);

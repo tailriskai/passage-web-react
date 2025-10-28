@@ -14,26 +14,22 @@ const countries = defaultCountries.filter(country => {
 
 interface DesktopViewProps {
   isLoading: boolean;
-  isCheckingWriteOperation: boolean;
-  writeOperationAlreadyCompleted: boolean;
-  config: any;
   integrationName: string;
   qrCodeUrl: string;
   qrCodeSize: number;
   isIosMobile: boolean;
   logoUrl?: string;
+  modalMode?: boolean; // Enable modal presentation style
 }
 
 export const DesktopView: React.FC<DesktopViewProps> = ({
   isLoading,
-  isCheckingWriteOperation,
-  writeOperationAlreadyCompleted,
-  config,
   integrationName,
   qrCodeUrl,
   qrCodeSize,
   isIosMobile,
-  logoUrl
+  logoUrl,
+  modalMode = false
 }) => {
   const [phoneNumber, setPhoneNumber] = useState('+1');
   const [isPhoneValid, setIsPhoneValid] = useState(false);
@@ -117,18 +113,35 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
     );
 
   return (
-    <div className={styles.androidContainer}>
-      <div className={styles.blurOverlay}></div>
-      <div className={styles.background}>
-        <div className={styles.glowOrb1}></div>
-        <div className={styles.glowOrb2}></div>
-        <div className={styles.glowOrb3}></div>
-        <div className={styles.glowOrb4}></div>
-      </div>
+    <div
+      className={styles.androidContainer}
+      style={modalMode ? {
+        position: 'relative',
+        width: 'auto',
+        height: 'auto',
+        minWidth: '320px',
+        minHeight: '400px',
+        maxWidth: '750px',
+        overflow: 'visible',
+        borderRadius: '24px',
+      } : undefined}
+    >
+      {/* Only render background layers in full-page mode */}
+      {!modalMode && (
+        <>
+          <div className={styles.blurOverlay}></div>
+          <div className={styles.background}>
+            <div className={styles.glowOrb1}></div>
+            <div className={styles.glowOrb2}></div>
+            <div className={styles.glowOrb3}></div>
+            <div className={styles.glowOrb4}></div>
+          </div>
+        </>
+      )}
       <div className={styles.content}>
         <AnimatePresence mode="wait">
           {/* Loading spinner */}
-          {(isLoading || isCheckingWriteOperation) ? (
+          {isLoading ? (
             <motion.div
               key="loading"
               className={styles.loadingCard}
@@ -138,48 +151,6 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
               transition={{ duration: 0.3, ease: "easeOut" }}
             >
               <div className={styles.spinner}></div>
-            </motion.div>
-          ) : writeOperationAlreadyCompleted ? (
-            // Already completed state
-            <motion.div
-              key="error"
-              className={styles.desktopCard}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-            >
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}
-                style={{ marginTop: "-14px", marginBottom: "0.5rem" }}
-              >
-                {renderLogo()}
-              </motion.div>
-
-              <motion.h2
-                className={styles.desktopTitle}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
-              >
-                Already Completed
-              </motion.h2>
-
-              <motion.p
-                style={{
-                  color: "#ffffff",
-                  fontSize: "16px",
-                  margin: "40px 20px 20px 20px",
-                  textAlign: "center",
-                  fontWeight: 400
-                }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-              >
-                Funds were already added to your {integrationName} account
-              </motion.p>
             </motion.div>
           ) : (
             // Main content
@@ -208,8 +179,8 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
                   >
-                    {config?.integrationName
-                      ? `Link your ${config.integrationName} account`
+                    {integrationName && integrationName !== 'account'
+                      ? `Link your ${integrationName} account`
                       : "Link your account"}
                   </motion.h2>
 
@@ -235,7 +206,7 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    Connect {config?.integrationName || ""}
+                    Connect {integrationName !== 'account' ? integrationName : ""}
                   </motion.a>
 
                   <motion.p
@@ -274,8 +245,8 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
                   >
-                    {config?.integrationName
-                      ? `Link your ${config.integrationName} account`
+                    {integrationName && integrationName !== 'account'
+                      ? `Link your ${integrationName} account`
                       : "Link your account"}
                   </motion.h2>
 
@@ -308,32 +279,12 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
 
                   {/* Divider */}
                   <motion.div
-                    style={{
-                      position: 'relative',
-                      textAlign: 'center',
-                      margin: '32px 0'
-                    }}
+                    className={styles.divider}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5, duration: 0.5 }}
                   >
-                    <div style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: 0,
-                      width: '40%',
-                      height: '1px',
-                      background: 'rgba(255, 255, 255, 0.2)'
-                    }}></div>
-                    <div style={{
-                      position: 'absolute',
-                      top: '50%',
-                      right: 0,
-                      width: '40%',
-                      height: '1px',
-                      background: 'rgba(255, 255, 255, 0.2)'
-                    }}></div>
-                    <span className={styles.dividerSpan}>or</span>
+                    <span>or</span>
                   </motion.div>
 
                   <motion.p

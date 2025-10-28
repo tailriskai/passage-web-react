@@ -120,7 +120,7 @@ export async function checkResourceData(
 ): Promise<{ hasData: boolean; data?: ResourceDataItem[] }> {
   try {
     const config = getConfig();
-    const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+    const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
     const endpoint = `${apiUrl}/connections/${sessionId}/${resourceType}`;
 
     logger.debug(`[checkResourceData] Fetching ${resourceType} data from:`, endpoint);

@@ -1,5 +1,5 @@
 import { jwtDecode } from "jwt-decode";
-import { DEFAULT_WEB_BASE_URL, LOGGER_PATH } from "./config";
+import { DEFAULT_UI_BASE_URL, LOGGER_PATH } from "./config";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -285,7 +285,7 @@ class Logger {
     this.config = {
       enableHttpTransport: true, // Default to enabled
       httpTransport: {
-        endpoint: buildLoggerEndpoint(DEFAULT_WEB_BASE_URL),
+        endpoint: buildLoggerEndpoint(DEFAULT_UI_BASE_URL),
         sdkName: "web-react",
         ...config.httpTransport,
       },
@@ -503,7 +503,7 @@ function getDefaultLoggerConfig(): LoggerConfig {
   const config: LoggerConfig = {
     enableHttpTransport: true,
     httpTransport: {
-      endpoint: buildLoggerEndpoint(DEFAULT_WEB_BASE_URL),
+      endpoint: buildLoggerEndpoint(DEFAULT_UI_BASE_URL),
       sdkName: "web-react-js",
     },
   };

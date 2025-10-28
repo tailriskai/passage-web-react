@@ -1,22 +1,41 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import styles from './AppClipPage.module.css';
-import logoImage from './logo.png';
+import defaultLogoImage from './logo.png';
 
 interface AndroidViewProps {
   onSendToIos: () => void;
+  logoUrl?: string;
+  modalMode?: boolean; // Enable modal presentation style
 }
 
-export const AndroidView: React.FC<AndroidViewProps> = ({ onSendToIos }) => {
+export const AndroidView: React.FC<AndroidViewProps> = ({ onSendToIos, logoUrl, modalMode = false }) => {
   return (
-    <div className={styles.androidContainer}>
-      <div className={styles.blurOverlay}></div>
-      <div className={styles.background}>
-        <div className={styles.glowOrb1}></div>
-        <div className={styles.glowOrb2}></div>
-        <div className={styles.glowOrb3}></div>
-        <div className={styles.glowOrb4}></div>
-      </div>
+    <div
+      className={styles.androidContainer}
+      style={modalMode ? {
+        position: 'relative',
+        width: 'auto',
+        height: 'auto',
+        minWidth: '320px',
+        minHeight: '300px',
+        maxWidth: '650px',
+        overflow: 'visible',
+        borderRadius: '24px',
+      } : undefined}
+    >
+      {/* Only render background layers in full-page mode */}
+      {!modalMode && (
+        <>
+          <div className={styles.blurOverlay}></div>
+          <div className={styles.background}>
+            <div className={styles.glowOrb1}></div>
+            <div className={styles.glowOrb2}></div>
+            <div className={styles.glowOrb3}></div>
+            <div className={styles.glowOrb4}></div>
+          </div>
+        </>
+      )}
       <div className={styles.content}>
         <motion.div
           className={styles.messageCard}
@@ -31,8 +50,8 @@ export const AndroidView: React.FC<AndroidViewProps> = ({ onSendToIos }) => {
             style={{ marginTop: "-14px", marginBottom: "0.2rem" }}
           >
             <img
-              src={logoImage}
-              alt="Passage Logo"
+              src={logoUrl || defaultLogoImage}
+              alt="Logo"
               width={80}
               height={80}
               className={styles.logoImage}

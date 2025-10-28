@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   usePassage,
+  configure,
   PassageSuccessData,
   PassageErrorData,
   PassagePrompt,
@@ -32,7 +33,7 @@ const BasicExample: React.FC = () => {
   const [presentationStyle, setPresentationStyle] = useState<"modal" | "embed">(
     "modal"
   );
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [currentToken, setCurrentToken] = useState<string | null>(null);
   const [logs, setLogs] = useState<
     Array<{
       timestamp: string;
@@ -59,6 +60,9 @@ const BasicExample: React.FC = () => {
   const [createdShortCode, setCreatedShortCode] = useState<string>('');
   const [isCreatingShortcode, setIsCreatingShortcode] = useState(false);
   const [maxUses, setMaxUses] = useState<number>(1);
+  const [promptResults, setPromptResults] = useState<PassagePromptResponse[]>(
+    []
+  );
 
   // Function to get available resources for the selected integration
   const getAvailableResources = (integrationSlug: string) => {
@@ -177,7 +181,7 @@ const BasicExample: React.FC = () => {
     return formFields;
   };
 
-  // Function to build the resources structure from form field values
+  // Function to build the resources structure from form data
   const buildResourcesFromFormData = () => {
     const resourcesObj: any = {};
 
@@ -424,9 +428,6 @@ const BasicExample: React.FC = () => {
     outputType: "text",
     outputFormat: undefined,
   });
-  const [promptResults, setPromptResults] = useState<PassagePromptResponse[]>(
-    []
-  );
 
   const addLog = (
     message: string,
@@ -446,10 +447,10 @@ const BasicExample: React.FC = () => {
     setPrompt((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleInitialize = async () => {
+  const handleGenerateAndOpen = async () => {
     setLoading(true);
     setPromptResults([]);
-    addLog("Initializing Passage...");
+    addLog("🚀 Generate token and Open in one step...");
     if (recordMode) {
       addLog("📹 Record mode enabled - session will be recorded", "info");
     }
@@ -467,15 +468,17 @@ const BasicExample: React.FC = () => {
     }
 
     try {
+      // Step 1: Generate token
+      addLog("1️⃣ Generating app clip token...");
       const resourcesData = buildResourcesFromFormData();
+
       console.log("Resources data being passed:", resourcesData);
 
-      await passage.initialize({
-        publishableKey,
+      // Use openAppClip for one-step process
+      await passage.openAppClip({
         integrationId: integrationId || undefined,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         record: recordMode,
-        products: resources.length > 0 ? resources : undefined,
         resources:
           Object.keys(resourcesData).length > 0 ? resourcesData : undefined,
         onConnectionComplete: async (data: PassageSuccessData) => {
@@ -495,17 +498,8 @@ const BasicExample: React.FC = () => {
               data: data,
             },
           ]);
-
-          // Automatically fetch resources if any are selected
-          if (resources.length > 0) {
-            addLog(
-              `🔄 Auto-fetching ${resources.length} selected resource(s)...`,
-              "info"
-            );
-            await handleFetchResources();
-          }
         },
-        onError: (error: PassageErrorData) => {
+        onConnectionError: (error: PassageErrorData) => {
           addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
           setConnectionResults((prev) => [
             ...prev,
@@ -529,21 +523,9 @@ const BasicExample: React.FC = () => {
               data: data,
             },
           ]);
-        },
-        onPromptComplete: (promptResponse: PassagePromptResponse) => {
-          addLog(
-            `🎯 Prompt completed: ${promptResponse.name} = ${promptResponse.content}`,
-            "success"
-          );
-          setPromptResults((prev) => [...prev, promptResponse]);
-          setConnectionResults((prev) => [
-            ...prev,
-            {
-              type: "promptComplete",
-              timestamp: new Date().toISOString(),
-              data: promptResponse,
-            },
-          ]);
+          if (data?.prompts) {
+            setPromptResults(data.prompts);
+          }
         },
         onExit: (reason) => {
           addLog(`👋 User exited: ${reason || "unknown reason"}`);
@@ -558,239 +540,9 @@ const BasicExample: React.FC = () => {
         },
       });
 
-      setIsInitialized(true);
-      addLog("✅ Passage initialized successfully!", "success");
+      addLog("🎉 App clip opened successfully!", "success");
     } catch (error) {
-      addLog(`❌ Initialization failed: ${error}`, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOpen = async () => {
-    addLog(`Opening Passage ${presentationStyle}...`);
-
-    try {
-      const openOptions: any = {
-        presentationStyle,
-        onConnectionComplete: async (data: PassageSuccessData) => {
-          addLog(
-            `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
-            "success"
-          );
-          setConnectionResults((prev) => [
-            ...prev,
-            {
-              type: data.status === "done" ? "done" : "connectionComplete",
-              timestamp: new Date().toISOString(),
-              presentationStyle: presentationStyle,
-              data: data,
-            },
-          ]);
-
-          // Automatically fetch resources if any are selected
-          if (resources.length > 0) {
-            addLog(
-              `🔄 Auto-fetching ${resources.length} selected resource(s)...`,
-              "info"
-            );
-            await handleFetchResources();
-          }
-        },
-        onError: (error: PassageErrorData) => {
-          addLog(
-            `❌ ${presentationStyle}: Error occurred: ${error.error}`,
-            "error"
-          );
-          setConnectionResults((prev) => [
-            ...prev,
-            {
-              type: "error",
-              timestamp: new Date().toISOString(),
-              presentationStyle: presentationStyle,
-              data: error,
-            },
-          ]);
-        },
-        onPromptComplete: (promptResponse: PassagePromptResponse) => {
-          addLog(
-            `🎯 ${presentationStyle} prompt: ${promptResponse.name} = ${promptResponse.content}`,
-            "success"
-          );
-          setPromptResults((prev) => [...prev, promptResponse]);
-          setConnectionResults((prev) => [
-            ...prev,
-            {
-              type: "promptComplete",
-              timestamp: new Date().toISOString(),
-              presentationStyle: presentationStyle,
-              data: promptResponse,
-            },
-          ]);
-        },
-      };
-
-      // Add container for embed mode
-      if (presentationStyle === "embed") {
-        const embedContainer = document.querySelector("#embed-container");
-        console.log("[BasicExample] Embed container found:", embedContainer);
-        openOptions.container = embedContainer || "#embed-container";
-      }
-
-      await passage.open(openOptions);
-
-      addLog(`🚀 Passage ${presentationStyle} opened successfully!`);
-    } catch (error) {
-      addLog(`❌ Failed to open ${presentationStyle}: ${error}`, "error");
-    }
-  };
-
-  const handleInitializeAndOpen = async () => {
-    setLoading(true);
-    setPromptResults([]);
-    addLog("🚀 Initialize and Open in one step...");
-    if (recordMode) {
-      addLog("📹 Record mode enabled - session will be recorded", "info");
-    }
-
-    // Validate integrationId is selected
-    if (!integrationId) {
-      addLog("❌ Please select an integration type first", "error");
-      setLoading(false);
-      return;
-    }
-
-    const promptsToSend: PassagePrompt[] = [];
-    if (prompt.name && prompt.value) {
-      promptsToSend.push(prompt);
-    }
-
-    try {
-      // Step 1: Initialize
-      addLog("1️⃣ Initializing Passage...");
-      const resourcesData = buildResourcesFromFormData();
-
-      console.log("Resources data being passed:", resourcesData);
-
-      await passage.initialize({
-        publishableKey,
-        integrationId: integrationId || undefined,
-        prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
-        record: recordMode,
-        resources:
-          Object.keys(resourcesData).length > 0 ? resourcesData : undefined,
-        onConnectionComplete: (data: PassageSuccessData) => {
-          addLog(
-            `✅ Connection complete! Connection ID: ${data.connectionId}`,
-            "success"
-          );
-          addLog(
-            `Data received: ${JSON.stringify(data.data, null, 2)}`,
-            "success"
-          );
-        },
-        onError: (error: PassageErrorData) => {
-          addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
-        },
-        onDataComplete: (data) => {
-          addLog(
-            `📊 Data processing complete: ${JSON.stringify(data, null, 2)}`,
-            "success"
-          );
-        },
-        onPromptComplete: (promptResponse: PassagePromptResponse) => {
-          addLog(
-            `🎯 Prompt completed: ${promptResponse.name} = ${promptResponse.content}`,
-            "success"
-          );
-          setPromptResults((prev) => [...prev, promptResponse]);
-        },
-        onExit: (reason) => {
-          addLog(`👋 User exited: ${reason || "unknown reason"}`);
-        },
-      });
-
-      setIsInitialized(true);
-      addLog("✅ Initialization complete!", "success");
-
-      // Step 2: Open modal (add small delay to ensure state is updated)
-      addLog(`2️⃣ Opening Passage ${presentationStyle}...`);
-      await new Promise((resolve) => setTimeout(resolve, 100)); // Allow state to update
-
-      const openOptions: any = {
-        presentationStyle,
-        onConnectionComplete: async (data: PassageSuccessData) => {
-          addLog(
-            `✅ ${presentationStyle}: Connection complete! Status: ${data.status}`,
-            "success"
-          );
-          setConnectionResults((prev) => [
-            ...prev,
-            {
-              type: data.status === "done" ? "done" : "connectionComplete",
-              timestamp: new Date().toISOString(),
-              presentationStyle: presentationStyle,
-              data: data,
-            },
-          ]);
-
-          // Automatically fetch resources if any are selected
-          if (resources.length > 0) {
-            addLog(
-              `🔄 Auto-fetching ${resources.length} selected resource(s)...`,
-              "info"
-            );
-            await handleFetchResources();
-          }
-        },
-        onError: (error: PassageErrorData) => {
-          addLog(
-            `❌ ${presentationStyle}: Error occurred: ${error.error}`,
-            "error"
-          );
-          setConnectionResults((prev) => [
-            ...prev,
-            {
-              type: "error",
-              timestamp: new Date().toISOString(),
-              presentationStyle: presentationStyle,
-              data: error,
-            },
-          ]);
-        },
-        onPromptComplete: (promptResponse: PassagePromptResponse) => {
-          addLog(
-            `🎯 ${presentationStyle} prompt: ${promptResponse.name} = ${promptResponse.content}`,
-            "success"
-          );
-          setPromptResults((prev) => [...prev, promptResponse]);
-          setConnectionResults((prev) => [
-            ...prev,
-            {
-              type: "promptComplete",
-              timestamp: new Date().toISOString(),
-              presentationStyle: presentationStyle,
-              data: promptResponse,
-            },
-          ]);
-        },
-      };
-
-      // Add container for embed mode
-      if (presentationStyle === "embed") {
-        const embedContainer = document.querySelector("#embed-container");
-        console.log(
-          "[BasicExample] Initialize&Open - Embed container found:",
-          embedContainer
-        );
-        openOptions.container = embedContainer || "#embed-container";
-      }
-
-      await passage.open(openOptions);
-
-      addLog("🎉 Initialize and Open completed successfully!", "success");
-    } catch (error) {
-      addLog(`❌ Initialize and Open failed: ${error}`, "error");
+      addLog(`❌ Generate and Open failed: ${error}`, "error");
     } finally {
       setLoading(false);
     }
@@ -799,57 +551,6 @@ const BasicExample: React.FC = () => {
   const handleReset = () => {
     addLog("🔄 Reloading page...");
     window.location.reload();
-  };
-
-  const handleGetData = async () => {
-    addLog("Retrieving session data...");
-    const data = await passage.getData();
-    const formattedData = JSON.stringify(data, null, 2);
-    setFormattedJsonData(formattedData);
-    addLog(`📊 Session data: ${formattedData}`, "success");
-    if (data.length > 0) {
-      const lastResult = data[0];
-      setPromptResults(lastResult.prompts || []);
-    }
-  };
-
-  const handleFetchResources = async () => {
-    try {
-      if (resources.length === 0) {
-        addLog("⚠️ No resources selected to fetch", "info");
-        return;
-      }
-
-      addLog(
-        `🔄 Fetching ${resources.length} resource(s): ${resources.join(", ")}...`,
-        "info"
-      );
-
-      const data = await passage.fetchResource(resources);
-
-      if (data && data.length > 0) {
-        setFetchedResourceData(data);
-        addLog(`✅ Successfully fetched ${data.length} resource(s)`, "success");
-
-        // Log details of each resource
-        data.forEach((resource: any) => {
-          if (resource.resourceName && resource.data) {
-            const itemCount = Array.isArray(resource.data)
-              ? resource.data.length
-              : 1;
-            addLog(
-              `  • ${resource.resourceName}: ${itemCount} item(s)`,
-              "success"
-            );
-          }
-        });
-      } else {
-        addLog("⚠️ No data returned from resources", "info");
-      }
-    } catch (error) {
-      addLog(`❌ Error fetching resources: ${error}`, "error");
-      console.error("[handleFetchResources] Error:", error);
-    }
   };
 
   const clearLogs = () => {
@@ -957,10 +658,10 @@ const BasicExample: React.FC = () => {
   return (
     <>
       <div className="example-card">
-        <h3>🚀 Basic Usage with Prompts</h3>
+        <h3>🚀 Basic Usage with New API</h3>
         <p>
-          Initialize with your publishable key and optionally configure a prompt
-          for data collection. Choose between modal or embedded presentation.
+          Open connection flows using the new simplified API. Each button automatically generates
+          an intent token and opens the flow. Choose between Passage Modal/Embed or App Clip Modal (with QR codes).
         </p>
         <div className="input-group">
           <label htmlFor="basic-publishable-key">Publishable Key:</label>
@@ -970,7 +671,6 @@ const BasicExample: React.FC = () => {
             value={publishableKey}
             onChange={(e) => setPublishableKey(e.target.value)}
             placeholder="Enter your publishable key"
-            disabled={isInitialized}
           />
         </div>
 
@@ -999,7 +699,7 @@ const BasicExample: React.FC = () => {
                 updateUrlForResources(filteredResources);
               }
             }}
-            disabled={isInitialized || integrationsLoading}
+            disabled={integrationsLoading}
             style={{
               padding: "0.5rem",
               border: "1px solid #e2e8f0",
@@ -1060,7 +760,6 @@ const BasicExample: React.FC = () => {
               type="checkbox"
               checked={recordMode}
               onChange={(e) => setRecordMode(e.target.checked)}
-              disabled={isInitialized}
               style={{
                 width: "16px",
                 height: "16px",
@@ -1125,7 +824,6 @@ const BasicExample: React.FC = () => {
                       updateUrlForResources(newResources);
                     }
                   }}
-                  disabled={isInitialized}
                   style={{
                     width: "16px",
                     height: "16px",
@@ -1366,7 +1064,6 @@ const BasicExample: React.FC = () => {
                 placeholder="Prompt name (e.g., book_list)"
                 value={prompt.name}
                 onChange={(e) => updatePrompt("name", e.target.value)}
-                disabled={isInitialized}
                 style={{
                   padding: "0.5rem",
                   border: "1px solid #e2e8f0",
@@ -1378,7 +1075,6 @@ const BasicExample: React.FC = () => {
                 placeholder="Prompt value (e.g., return a list of my books with with a description of each)"
                 value={prompt.value}
                 onChange={(e) => updatePrompt("value", e.target.value)}
-                disabled={isInitialized}
                 style={{
                   padding: "0.5rem",
                   border: "1px solid #e2e8f0",
@@ -1404,7 +1100,6 @@ const BasicExample: React.FC = () => {
                     JSON.stringify(defaultSchema, null, 2)
                   );
                 }}
-                disabled={isInitialized}
                 style={{
                   padding: "0.5rem",
                   border: "1px solid #e2e8f0",
@@ -1421,7 +1116,6 @@ const BasicExample: React.FC = () => {
                   placeholder="JSON output format (e.g., { 'name': 'string', 'age': 'number' })"
                   value={prompt.outputFormat}
                   onChange={(e) => updatePrompt("outputFormat", e.target.value)}
-                  disabled={isInitialized}
                   autoComplete="off"
                   style={{
                     padding: "0.5rem",
@@ -1436,30 +1130,92 @@ const BasicExample: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ marginBottom: "1rem" }}>
+        <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button
             className="button"
-            onClick={handleInitialize}
-            disabled={loading || isInitialized}
-          >
-            {loading
-              ? "Initializing..."
-              : isInitialized
-                ? "✅ Initialized"
-                : "1. Initialize"}
-          </button>
+            onClick={async () => {
+              // Generate token and open modal/embed
+              setLoading(true);
+              setPromptResults([]);
+              addLog(`Generating intent token and opening ${presentationStyle}...`);
+              if (recordMode) {
+                addLog("📹 Record mode enabled - session will be recorded", "info");
+              }
 
-          <button
-            className="button"
-            onClick={handleOpen}
-            disabled={!isInitialized}
-          >
-            2. Open {presentationStyle === "modal" ? "Modal" : "Embed"}
-          </button>
+              if (!integrationId) {
+                addLog("❌ Please select an integration type first", "error");
+                setLoading(false);
+                return;
+              }
 
-          <button
-            className="button"
-            onClick={handleInitializeAndOpen}
+              const promptsToSend: PassagePrompt[] = [];
+              if (prompt.name && prompt.value) {
+                promptsToSend.push(prompt);
+              }
+
+              try {
+                const resourcesData = buildResourcesFromFormData();
+                const result = await passage.generateAppClip({
+                  integrationId: integrationId || undefined,
+                  prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
+                  record: recordMode,
+                  resources: Object.keys(resourcesData).length > 0 ? resourcesData : undefined,
+                });
+
+                setCurrentToken(result.intentToken);
+                addLog(`✅ Token generated successfully! Connection ID: ${result.connectionId}`, "success");
+
+                // Now open the modal/embed
+                await passage.open({
+                  token: result.intentToken,
+                  presentationStyle,
+                  container: presentationStyle === "embed" ? document.querySelector("#embed-container") || "#embed-container" : undefined,
+                  onConnectionComplete: async (data: PassageSuccessData) => {
+                    addLog(`✅ ${presentationStyle}: Connection complete! Status: ${data.status}`, "success");
+                    setConnectionResults((prev) => [...prev, {
+                      type: data.status === "done" ? "done" : "connectionComplete",
+                      timestamp: new Date().toISOString(),
+                      presentationStyle: presentationStyle,
+                      data: data,
+                    }]);
+                  },
+                  onConnectionError: (error: PassageErrorData) => {
+                    addLog(`❌ ${presentationStyle}: Error occurred: ${error.error}`, "error");
+                    setConnectionResults((prev) => [...prev, {
+                      type: "error",
+                      timestamp: new Date().toISOString(),
+                      presentationStyle: presentationStyle,
+                      data: error,
+                    }]);
+                  },
+                  onDataComplete: (data) => {
+                    addLog(`📊 Data processing complete: ${JSON.stringify(data, null, 2)}`, "success");
+                    setConnectionResults((prev) => [...prev, {
+                      type: "dataComplete",
+                      timestamp: new Date().toISOString(),
+                      data: data,
+                    }]);
+                    if (data?.prompts) {
+                      setPromptResults(data.prompts);
+                    }
+                  },
+                  onExit: (reason) => {
+                    addLog(`👋 User exited: ${reason || "unknown reason"}`);
+                    setConnectionResults((prev) => [...prev, {
+                      type: "exit",
+                      timestamp: new Date().toISOString(),
+                      data: { reason: reason || "unknown reason" },
+                    }]);
+                  },
+                });
+
+                addLog(`🚀 Passage ${presentationStyle} opened successfully!`);
+              } catch (error) {
+                addLog(`❌ Failed to generate token and open: ${error}`, "error");
+              } finally {
+                setLoading(false);
+              }
+            }}
             disabled={loading}
             style={{
               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -1468,31 +1224,53 @@ const BasicExample: React.FC = () => {
               fontWeight: "600",
             }}
           >
-            {loading
-              ? "🚀 Processing..."
-              : `🚀 Initialize & Open ${presentationStyle === "modal" ? "Modal" : "Embed"}`}
-          </button>
-
-          <button className="button secondary" onClick={handleGetData}>
-            Get Data
+            {loading ? "🚀 Opening..." : `Open Passage ${presentationStyle === "modal" ? "Modal" : "Embed"}`}
           </button>
 
           <button
-            className="button secondary"
-            onClick={handleFetchResources}
-            disabled={!isInitialized || resources.length === 0}
+            className="button"
+            onClick={handleGenerateAndOpen}
+            disabled={loading}
+            style={{
+              background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+              border: "none",
+              color: "white",
+              fontWeight: "600",
+            }}
           >
-            Fetch Resources
+            {loading ? "🚀 Opening..." : `Open App Clip Modal`}
           </button>
 
           <button
             className="button secondary"
             onClick={handleReset}
-            style={{ marginLeft: "auto" }}
           >
             🔄 Reset
           </button>
         </div>
+
+        {currentToken && (
+          <div
+            className="status-display success"
+            style={{ marginBottom: "1rem" }}
+          >
+            <h4 style={{ marginBottom: "0.5rem" }}>✅ Generated Intent Token:</h4>
+            <div
+              style={{
+                background: "rgba(255,255,255,0.5)",
+                padding: "0.5rem",
+                borderRadius: "4px",
+                wordBreak: "break-all",
+                fontSize: "0.75rem",
+                fontFamily: "monospace",
+                maxHeight: "200px",
+                overflowY: "auto",
+              }}
+            >
+              {currentToken}
+            </div>
+          </div>
+        )}
 
         {/* Shortcode Creation Section */}
         <div style={{
@@ -1596,414 +1374,6 @@ const BasicExample: React.FC = () => {
                 <strong>{result.name}:</strong> {result.content}
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Fetched Resources Display */}
-        {fetchedResourceData.length > 0 && (
-          <div style={{ marginBottom: "1.5rem" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "1rem",
-              }}
-            >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "1rem" }}
-              >
-                <span style={{ fontWeight: 600 }}>Fetched Resource Data:</span>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    cursor: "pointer",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={showResultAsTable}
-                    onChange={(e) => setShowResultAsTable(e.target.checked)}
-                    style={{
-                      width: "16px",
-                      height: "16px",
-                      cursor: "pointer",
-                    }}
-                  />
-                  Show as table
-                </label>
-              </div>
-              <button
-                className="button secondary"
-                onClick={clearFetchedResources}
-                style={{ padding: "0.5rem 1rem", fontSize: "0.875rem" }}
-              >
-                Clear
-              </button>
-            </div>
-
-            {showResultAsTable ? (
-              <div>
-                {fetchedResourceData.map((resourceData, index) => {
-                  // Check if we have a data array to display as table
-                  const dataArray =
-                    resourceData.data?.data ||
-                    (Array.isArray(resourceData.data)
-                      ? resourceData.data
-                      : null);
-
-                  if (
-                    dataArray &&
-                    Array.isArray(dataArray) &&
-                    dataArray.length > 0
-                  ) {
-                    return (
-                      <div
-                        key={index}
-                        style={{
-                          marginBottom: "1.5rem",
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: "0.75rem 1rem",
-                            background: "#f9fafb",
-                            borderTop: "1px solid #e2e8f0",
-                            borderLeft: "1px solid #e2e8f0",
-                            borderRight: "1px solid #e2e8f0",
-                            borderRadius: "8px 8px 0 0",
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <div>
-                            {resourceData.resourceName}
-                            <span
-                              style={{
-                                fontSize: "0.875rem",
-                                color: "#6b7280",
-                                fontWeight: 400,
-                                marginLeft: "0.5rem",
-                              }}
-                            >
-                              ({dataArray.length} items)
-                            </span>
-                          </div>
-                          {resourceData.data?.meta && (
-                            <span
-                              style={{
-                                fontSize: "0.75rem",
-                                color: "#6b7280",
-                                fontWeight: 400,
-                              }}
-                            >
-                              Page {resourceData.data.meta.page} of{" "}
-                              {resourceData.data.meta.totalPages} • Total:{" "}
-                              {resourceData.data.meta.total}
-                            </span>
-                          )}
-                        </div>
-                        <TanStackDataTable data={dataArray} maxHeight="500px" />
-                      </div>
-                    );
-                  }
-
-                  // Fallback to JSON display if not an array
-                  return (
-                    <div
-                      key={index}
-                      style={{
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "8px",
-                        overflow: "hidden",
-                        marginBottom: "1rem",
-                      }}
-                    >
-                      <div
-                        style={{
-                          padding: "0.75rem 1rem",
-                          background: "#f9fafb",
-                          borderBottom: "1px solid #e2e8f0",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {resourceData.resourceName}
-                        <span
-                          style={{
-                            fontSize: "0.875rem",
-                            color: "#6b7280",
-                            fontWeight: 400,
-                            marginLeft: "0.5rem",
-                          }}
-                        >
-                          (Object)
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          padding: "1rem",
-                          maxHeight: "400px",
-                          overflowY: "auto",
-                        }}
-                      >
-                        <pre
-                          style={{
-                            margin: 0,
-                            fontSize: "0.875rem",
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {JSON.stringify(resourceData.data, null, 2)}
-                        </pre>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <JsonExplorerMulti
-                data={fetchedResourceData}
-                title="Fetched Resources (JSON)"
-                maxHeight="500px"
-              />
-            )}
-          </div>
-        )}
-
-        {formattedJsonData && (
-          <div
-            className="status-display success"
-            style={{ marginBottom: "1rem" }}
-          >
-            <h4 style={{ marginBottom: "0.5rem" }}>📋 Session Data:</h4>
-            <div
-              style={{
-                maxHeight: "400px",
-                overflowY: "auto",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                padding: "1rem",
-                background: "#f9fafb",
-              }}
-            >
-              {(() => {
-                try {
-                  const data = JSON.parse(formattedJsonData);
-                  return (
-                    <div>
-                      <div
-                        style={{
-                          marginBottom: "1rem",
-                          padding: "0.5rem",
-                          background: "#e2e8f0",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        <strong>Total Sessions:</strong> {data.length}
-                      </div>
-                      {data.map((session: any, sessionIndex: number) => (
-                        <div
-                          key={sessionIndex}
-                          style={{
-                            marginBottom: "1.5rem",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "8px",
-                            padding: "1rem",
-                            background: "white",
-                          }}
-                        >
-                          <div
-                            style={{
-                              marginBottom: "0.5rem",
-                              fontSize: "0.875rem",
-                              color: "#6b7280",
-                            }}
-                          >
-                            <strong>Session {sessionIndex + 1}</strong> -{" "}
-                            {new Date(session.timestamp).toLocaleString()}
-                          </div>
-                          <div
-                            style={{
-                              marginBottom: "0.5rem",
-                              fontSize: "0.75rem",
-                              color: "#9ca3af",
-                              wordBreak: "break-all",
-                            }}
-                          >
-                            <strong>Intent Token:</strong>{" "}
-                            {session.intentToken.substring(0, 50)}...
-                          </div>
-                          {session.data && session.data.length > 0 && (
-                            <div>
-                              <div
-                                style={{
-                                  marginBottom: "0.5rem",
-                                  fontWeight: "600",
-                                  color: "#374151",
-                                }}
-                              >
-                                Videos ({session.data.length}):
-                              </div>
-                              <div style={{ display: "grid", gap: "0.75rem" }}>
-                                {session.data.map(
-                                  (video: any, videoIndex: number) => (
-                                    <div
-                                      key={videoIndex}
-                                      style={{
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: "6px",
-                                        padding: "0.75rem",
-                                        background: "#fafafa",
-                                        display: "flex",
-                                        gap: "0.75rem",
-                                      }}
-                                    >
-                                      <div style={{ flex: "0 0 120px" }}>
-                                        <img
-                                          src={video.thumbnailUrl}
-                                          alt={video.title}
-                                          style={{
-                                            width: "100%",
-                                            height: "68px",
-                                            objectFit: "cover",
-                                            borderRadius: "4px",
-                                          }}
-                                          onError={(e) => {
-                                            (
-                                              e.target as HTMLImageElement
-                                            ).style.display = "none";
-                                          }}
-                                        />
-                                      </div>
-                                      <div style={{ flex: "1" }}>
-                                        <div
-                                          style={{
-                                            fontWeight: "600",
-                                            marginBottom: "0.25rem",
-                                            fontSize: "0.875rem",
-                                            lineHeight: "1.25",
-                                          }}
-                                        >
-                                          {video.title}
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontSize: "0.75rem",
-                                            color: "#6b7280",
-                                            marginBottom: "0.25rem",
-                                          }}
-                                        >
-                                          <strong>Channel:</strong>{" "}
-                                          {video.channel}
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontSize: "0.75rem",
-                                            color: "#6b7280",
-                                            marginBottom: "0.25rem",
-                                          }}
-                                        >
-                                          <strong>Duration:</strong>{" "}
-                                          {video.duration}
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontSize: "0.75rem",
-                                            color: "#6b7280",
-                                            marginBottom: "0.25rem",
-                                          }}
-                                        >
-                                          <strong>Watched:</strong>{" "}
-                                          {new Date(
-                                            video.watchedAt
-                                          ).toLocaleString()}
-                                        </div>
-                                        <div
-                                          style={{
-                                            fontSize: "0.75rem",
-                                            color: "#6b7280",
-                                            lineHeight: "1.25",
-                                          }}
-                                        >
-                                          {video.description}
-                                        </div>
-                                        <div style={{ marginTop: "0.25rem" }}>
-                                          <a
-                                            href={video.videoUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style={{
-                                              fontSize: "0.75rem",
-                                              color: "#3b82f6",
-                                              textDecoration: "none",
-                                            }}
-                                          >
-                                            Watch Video →
-                                          </a>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          {session.prompts && session.prompts.length > 0 && (
-                            <div style={{ marginTop: "1rem" }}>
-                              <div
-                                style={{
-                                  fontWeight: "600",
-                                  marginBottom: "0.5rem",
-                                  color: "#374151",
-                                }}
-                              >
-                                Prompts ({session.prompts.length}):
-                              </div>
-                              {session.prompts.map(
-                                (prompt: any, promptIndex: number) => (
-                                  <div
-                                    key={promptIndex}
-                                    style={{
-                                      background: "#f3f4f6",
-                                      padding: "0.5rem",
-                                      borderRadius: "4px",
-                                      marginBottom: "0.25rem",
-                                      fontSize: "0.75rem",
-                                    }}
-                                  >
-                                    <strong>{prompt.name}:</strong>{" "}
-                                    {prompt.content}
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                } catch (error) {
-                  return (
-                    <div
-                      style={{
-                        color: "#dc2626",
-                        fontFamily: "monospace",
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      Error parsing data:{" "}
-                      {error instanceof Error ? error.message : String(error)}
-                    </div>
-                  );
-                }
-              })()}
-            </div>
           </div>
         )}
 

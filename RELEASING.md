@@ -46,9 +46,6 @@ npm install @getpassage/react-js
 # Install specific version
 npm install @getpassage/react-js@1.0.1
 
-# Using pnpm
-pnpm add @getpassage/react-js
-
 # Using yarn
 yarn add @getpassage/react-js
 ```
@@ -201,8 +198,8 @@ The package has multiple README files:
 
 The workflow runs your existing build scripts:
 
-- `pnpm install --frozen-lockfile`
-- `pnpm build`
+- `yarn install --frozen-lockfile`
+- `yarn build`
 - Handles `prepack`/`postpack` scripts automatically
 
 ## 🔧 Troubleshooting

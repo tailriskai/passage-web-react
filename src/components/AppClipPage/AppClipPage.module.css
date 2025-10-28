@@ -7,11 +7,7 @@
     width: 100vw;
     height: 100vh;
     height: 100dvh; /* Dynamic viewport height for mobile */
-    background-color: #0C0D11;
-    background-image: url('/clip-bg.jpg');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
+    background-color: var(--color-background, rgba(15, 16, 20, 0.1));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -29,11 +25,7 @@
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    background-color: #000000;
-    background-image: url('/clip-bg.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    background-color: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -43,26 +35,18 @@
     overflow-x: hidden;
     z-index: 9999;
     -webkit-overflow-scrolling: touch;
+    transition: background-color 0.6s ease-in-out;
 }
 
-/* Blur overlay on top of background image */
+/* Blur overlay - removed for cleaner modal appearance */
 .blurOverlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: transparent;
     z-index: 1;
-}
-
-/* Backdrop blur for browsers that support it (Chromium/Safari) */
-@supports (backdrop-filter: blur(40px)) or (-webkit-backdrop-filter: blur(40px)) {
-    .blurOverlay {
-        background-color: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(40px);
-        -webkit-backdrop-filter: blur(40px);
-    }
 }
 
 /* Animated background layer */
@@ -74,7 +58,7 @@
     height: 100%;
     overflow: hidden;
     z-index: 2;
-    filter: blur(80px) brightness(1.2) saturate(1.3);
+    filter: blur(20px) brightness(1.2) saturate(1.3);
 }
 
 /* Glowing orbs with different colors and animations */
@@ -82,44 +66,64 @@
     position: absolute;
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.6) 0%, rgba(37, 99, 235, 0) 70%);
+    background: radial-gradient(
+        circle,
+        color-mix(in srgb, var(--color-card-background, rgba(15, 16, 20, 0.85)) 60%, transparent) 0%,
+        transparent 70%
+    );
     border-radius: 50%;
     animation: float1 25s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
     top: 10%;
     left: 10%;
+    transition: background 0.8s ease-in-out;
 }
 
 .glowOrb2 {
     position: absolute;
     width: 500px;
     height: 500px;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.5) 0%, rgba(37, 99, 235, 0) 70%);
+    background: radial-gradient(
+        circle,
+        color-mix(in srgb, var(--color-card-background, rgba(15, 16, 20, 0.85)) 50%, transparent) 0%,
+        transparent 70%
+    );
     border-radius: 50%;
     animation: float2 30s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
     top: 50%;
     right: 10%;
+    transition: background 0.8s ease-in-out;
 }
 
 .glowOrb3 {
     position: absolute;
     width: 350px;
     height: 350px;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.4) 0%, rgba(37, 99, 235, 0) 70%);
+    background: radial-gradient(
+        circle,
+        color-mix(in srgb, var(--color-card-background, rgba(15, 16, 20, 0.85)) 40%, transparent) 0%,
+        transparent 70%
+    );
     border-radius: 50%;
     animation: float3 22s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
     bottom: 15%;
     left: 20%;
+    transition: background 0.8s ease-in-out;
 }
 
 .glowOrb4 {
     position: absolute;
     width: 450px;
     height: 450px;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.5) 0%, rgba(37, 99, 235, 0) 70%);
+    background: radial-gradient(
+        circle,
+        color-mix(in srgb, var(--color-card-background, rgba(15, 16, 20, 0.85)) 50%, transparent) 0%,
+        transparent 70%
+    );
     border-radius: 50%;
     animation: float4 27s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
     top: 30%;
     left: 50%;
+    transition: background 0.8s ease-in-out;
 }
 
 /* Advanced bouncing animations */
@@ -258,34 +262,35 @@
 
 /* Message card */
 .messageCard {
-    background: rgba(15, 16, 20, 0.8);
+    background: var(--color-card-background, rgba(15, 16, 20, 0.1));
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 24px;
     padding: 48px 40px;
     max-width: 650px;
     text-align: center;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.1);
+    transition: background 0.6s ease-in-out, box-shadow 0.3s ease-in-out;
 }
 
 .title {
     font-size: 32px;
     font-weight: 800;
-    color: #ffffff;
+    color: var(--color-text, #ffffff);
     margin: 0 0 16px 0;
     letter-spacing: -0.5px;
 }
 
 .description {
     font-size: 18px;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--color-text, rgba(255, 255, 255, 0.9));
     margin: 0 0 12px 0;
     line-height: 1.3;
 }
 
 .subdescription {
     font-size: 15px;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
     margin: 0;
     line-height: 1.3;
 }
@@ -294,7 +299,7 @@
 .sendToIosButton {
     margin-top: 24px;
     padding: 14px 28px;
-    background: #2563EB;
+    background: var(--color-primary, #2563EB);
     color: white;
     border: none;
     border-radius: 12px;
@@ -307,9 +312,10 @@
 }
 
 .sendToIosButton:hover {
-    background: #1d4ed8;
+    background: var(--color-primary, #2563EB);
+    filter: brightness(0.9);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .sendToIosButton:active {
@@ -318,28 +324,28 @@
 
 /* Desktop Card */
 .desktopCard {
-    background: rgba(15, 16, 20, 0.85);
+    background: var(--color-card-background, rgba(15, 16, 20, 0.1));
     backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 24px;
     padding: 38px 20px;
     max-width: 750px;
     text-align: center;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     overflow: visible;
+    transition: background 0.6s ease-in-out, box-shadow 2s ease-in-out;
 }
 
 .desktopTitle {
     font-size: 28px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--color-text, #ffffff);
     margin: 0;
     letter-spacing: -0.5px;
 }
 
 .desktopSubtitle {
     font-size: 16px;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--color-text-secondary, rgba(255, 255, 255, 0.7));
     margin: 0 0 24px 0;
     text-align: center;
 }
@@ -371,7 +377,7 @@ a.qrCodeWrapper {
 
 a.qrCodeWrapper:hover {
     transform: scale(1.02);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
 a.qrCodeWrapper:active {
@@ -390,7 +396,7 @@ a.qrCodeWrapper:active {
 
 .qrHint {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
     margin: 0 0 20px 0;
 }
 
@@ -399,27 +405,28 @@ a.qrCodeWrapper:active {
     display: inline-block;
     margin-top: 24px;
     padding: 14px 32px;
-    background: #2563EB;
+    background: var(--color-primary, #2563EB);
     color: white;
     border: none;
     border-radius: 12px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s ease, box-shadow 0.3s ease-in-out;
     text-decoration: none;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .openAppClipButton:hover {
-    background: #1d4ed8;
+    background: var(--color-primary, #2563EB);
+    filter: brightness(0.9);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .openAppClipButton:active {
     transform: translateY(0);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Divider */
@@ -436,7 +443,7 @@ a.qrCodeWrapper:active {
     top: 50%;
     width: 40%;
     height: 1px;
-    background: rgba(255, 255, 255, 0.2);
+    background: color-mix(in srgb, var(--color-text, rgba(255, 255, 255, 0.2)) 20%, transparent);
 }
 
 .divider::before {
@@ -451,7 +458,7 @@ a.qrCodeWrapper:active {
     display: inline-block;
     padding: 0 16px;
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.5);
+    color: color-mix(in srgb, var(--color-text, rgba(255, 255, 255, 0.5)) 50%, transparent);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -478,7 +485,7 @@ a.qrCodeWrapper:active {
 /* Override phone input styles for dark theme */
 .phoneInputWrapper :global(.react-international-phone-input-container) {
     background: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid color-mix(in srgb, var(--color-text, rgba(255, 255, 255, 0.2)) 20%, transparent) !important;
     border-radius: 12px !important;
     overflow: visible !important;
     position: relative !important;
@@ -488,9 +495,9 @@ a.qrCodeWrapper:active {
 .phoneInputWrapper :global(.react-international-phone-country-selector-button) {
     background: transparent !important;
     border: none !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-right: 1px solid color-mix(in srgb, var(--color-text, rgba(255, 255, 255, 0.2)) 20%, transparent) !important;
     padding: 12px !important;
-    color: white !important;
+    color: var(--color-text, white) !important;
     outline: none !important;
     box-shadow: none !important;
     scroll-margin: 0 !important;
@@ -513,12 +520,12 @@ a.qrCodeWrapper:active {
 }
 
 .phoneInputWrapper :global(.react-international-phone-country-selector-button__button-content) {
-    color: white !important;
+    color: var(--color-text, white) !important;
     background: transparent !important;
 }
 
 .phoneInputWrapper :global(.react-international-phone-country-selector-button__dropdown-arrow) {
-    border-color: white transparent transparent transparent !important;
+    border-color: var(--color-text, white) transparent transparent transparent !important;
 }
 
 .phoneInputWrapper :global(.react-international-phone-flag-emoji) {
@@ -528,9 +535,9 @@ a.qrCodeWrapper:active {
 
 /* Country selector dropdown - dark theme */
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown) {
-    background: #1a1b1f !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+    background: var(--color-card-background, #1a1b1f) !important;
+    border: 1px solid color-mix(in srgb, var(--color-text, rgba(255, 255, 255, 0.2)) 20%, transparent) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
     max-height: 300px !important;
     min-height: 200px !important;
     height: auto !important;
@@ -553,8 +560,8 @@ a.qrCodeWrapper:active {
 }
 
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__list) {
-    background: #1a1b1f !important;
-    background-color: #1a1b1f !important;
+    background: var(--color-card-background, #1a1b1f) !important;
+    background-color: var(--color-card-background, #1a1b1f) !important;
     max-height: 300px !important;
     height: auto !important;
     overflow-y: auto !important;
@@ -566,10 +573,10 @@ a.qrCodeWrapper:active {
 
 /* Remove any white backgrounds from search container */
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__search-container) {
-    background: #1a1b1f !important;
-    background-color: #1a1b1f !important;
+    background: var(--color-card-background, #1a1b1f) !important;
+    background-color: var(--color-card-background, #1a1b1f) !important;
     padding: 8px !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-text, rgba(255, 255, 255, 0.1)) 10%, transparent) !important;
 }
 
 /* Force dark backgrounds on all dropdown containers */
@@ -577,8 +584,8 @@ a.qrCodeWrapper:active {
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__list),
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__search-container),
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown > div) {
-    background: #1a1b1f !important;
-    background-color: #1a1b1f !important;
+    background: var(--color-card-background, #1a1b1f) !important;
+    background-color: var(--color-card-background, #1a1b1f) !important;
 }
 
 /* Custom scrollbar for dropdown */
@@ -605,10 +612,10 @@ a.qrCodeWrapper:active {
 }
 
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__list-item) {
-    background: #1a1b1f !important;
-    background-color: #1a1b1f !important;
-    color: rgba(255, 255, 255, 0.9) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: var(--color-card-background, #1a1b1f) !important;
+    background-color: var(--color-card-background, #1a1b1f) !important;
+    color: var(--color-text, rgba(255, 255, 255, 0.9)) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-text, rgba(255, 255, 255, 0.1)) 10%, transparent) !important;
     padding: 12px 16px !important;
     min-height: 48px !important;
     display: flex !important;
@@ -619,54 +626,54 @@ a.qrCodeWrapper:active {
 }
 
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__list-item:hover) {
-    background: rgba(37, 99, 235, 0.2) !important;
-    background-color: rgba(37, 99, 235, 0.2) !important;
+    background: color-mix(in srgb, var(--color-primary, #2563eb) 20%, transparent) !important;
+    background-color: color-mix(in srgb, var(--color-primary, #2563eb) 20%, transparent) !important;
 }
 
 .phoneInputWrapper
 :global(.react-international-phone-country-selector-dropdown__list-item--selected) {
-    background: rgba(37, 99, 235, 0.3) !important;
-    background-color: rgba(37, 99, 235, 0.3) !important;
+    background: color-mix(in srgb, var(--color-primary, #2563eb) 30%, transparent) !important;
+    background-color: color-mix(in srgb, var(--color-primary, #2563eb) 30%, transparent) !important;
 }
 
 .phoneInputWrapper
 :global(.react-international-phone-country-selector-dropdown__list-item--focused) {
-    background: rgba(37, 99, 235, 0.15) !important;
-    background-color: rgba(37, 99, 235, 0.15) !important;
+    background: color-mix(in srgb, var(--color-primary, #2563eb) 15%, transparent) !important;
+    background-color: color-mix(in srgb, var(--color-primary, #2563eb) 15%, transparent) !important;
 }
 
 /* Search input in dropdown */
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__search-input) {
     background: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    color: white !important;
+    border: 1px solid color-mix(in srgb, var(--color-text, rgba(255, 255, 255, 0.2)) 20%, transparent) !important;
+    color: var(--color-text, white) !important;
     padding: 8px 12px !important;
 }
 
 .phoneInputWrapper
 :global(.react-international-phone-country-selector-dropdown__search-input::placeholder) {
-    color: rgba(255, 255, 255, 0.4) !important;
+    color: var(--color-text-secondary, rgba(255, 255, 255, 0.4)) !important;
 }
 
 /* Country name and dial code in dropdown */
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__list-item-country-name) {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: var(--color-text, rgba(255, 255, 255, 0.9)) !important;
 }
 
 .phoneInputWrapper :global(.react-international-phone-country-selector-dropdown__list-item-dial-code) {
-    color: rgba(255, 255, 255, 0.6) !important;
+    color: var(--color-text-secondary, rgba(255, 255, 255, 0.6)) !important;
 }
 
 .phoneInputWrapper :global(.react-international-phone-input) {
     background: transparent!important;
-    color: white!important;
+    color: var(--color-text, white)!important;
     border: none!important;
     padding: 14px 16px!important;
     font-size: 16px!important;
 }
 
 .phoneInputWrapper :global(.react-international-phone-input)::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-text-secondary, rgba(255, 255, 255, 0.4));
 }
 
 .phoneInputWrapper :global(.react-international-phone-input:disabled) {
@@ -677,7 +684,7 @@ a.qrCodeWrapper:active {
 /* Send Button */
 .sendButton {
     padding: 14px 32px;
-    background: #2563EB;
+    background: var(--color-primary, #2563EB);
     color: white;
     border: none;
     border-radius: 12px;
@@ -691,9 +698,10 @@ a.qrCodeWrapper:active {
 }
 
 .sendButton:hover:not(:disabled) {
-    background: #1d4ed8;
+    background: var(--color-primary, #2563EB);
+    filter: brightness(0.9);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .sendButton:active:not(:disabled) {
@@ -946,7 +954,7 @@ a.qrCodeWrapper:active {
 
 /* Loading State */
 .loadingCard {
-    background: rgba(15, 16, 20, 0.85);
+    background: var(--color-card-background, rgba(15, 16, 20, 0.1));
     backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 24px;
@@ -956,14 +964,15 @@ a.qrCodeWrapper:active {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.1);
+    transition: background 0.6s ease-in-out, box-shadow 0.3s ease-in-out;
 }
 
 .spinner {
     width: 48px;
     height: 48px;
     border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #2563EB;
+    border-top-color: var(--color-primary, #2563EB);
     border-radius: 50%;
     animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
 }

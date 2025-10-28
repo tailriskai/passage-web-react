@@ -34,23 +34,18 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
           registry-url: "https://registry.npmjs.org"
-          cache: "pnpm"
+          cache: "yarn"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: yarn install --frozen-lockfile
 
       - name: Build package
-        run: pnpm build
+        run: yarn build
 
       - name: Configure git
         run: |
@@ -103,8 +98,6 @@ jobs:
             ```bash
             npm install @getpassage/react-js@${{ steps.version.outputs.new_version }}
             # or
-            pnpm add @getpassage/react-js@${{ steps.version.outputs.new_version }}
-            # or
             yarn add @getpassage/react-js@${{ steps.version.outputs.new_version }}
             ```
           draft: false
@@ -113,8 +106,7 @@ jobs:
       - name: Prepare for NPM publish
         run: |
           # Remove prepack/postpack scripts temporarily to avoid conflicts
-          pnpm pkg delete scripts.prepack
-          pnpm pkg delete scripts.postpack
+          node -e "const fs=require('fs'); const pkg=JSON.parse(fs.readFileSync('package.json')); delete pkg.scripts.prepack; delete pkg.scripts.postpack; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
 
           # Copy the NPM README to be the main README
           cp README.npm.md README.md
@@ -125,7 +117,7 @@ jobs:
           mv README.repo.md .readme-backup/ || true
 
       - name: Publish to NPM
-        run: pnpm publish --access public --no-git-checks
+        run: yarn publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -141,9 +133,9 @@ jobs:
 
       - name: Create tarball for release asset
         run: |
-          pnpm pack
-          # Rename to a cleaner filename (pnpm pack creates getpassage-react-js-VERSION.tgz)
-          mv getpassage-react-js-${{ steps.version.outputs.new_version }}.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz
+          yarn pack
+          # Rename to a cleaner filename (yarn pack creates different output)
+          mv package.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz || mv getpassage-react-js-${{ steps.version.outputs.new_version }}.tgz passage-web-react-${{ steps.version.outputs.new_version }}.tgz
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1

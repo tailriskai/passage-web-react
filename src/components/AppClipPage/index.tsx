@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useShortCode } from '../../hooks/useShortCode';
-import { useIntentToken } from '../../hooks/useIntentToken';
-import { logger } from '../../logger';
 import { AndroidView } from './AndroidView';
 import { DesktopView } from './DesktopView';
+import { applyBranding, resetBranding } from '../../utils/branding';
+import type { BrandingConfig } from '../../types';
 
 export interface AppClipPageProps {
   /** Optional short code from URL params */
@@ -16,37 +16,25 @@ export interface AppClipPageProps {
   integrationName?: string;
   /** Callback when intent token is resolved */
   onIntentTokenResolved?: (intentToken: string) => void;
-  /** Callback when write operation is detected as already completed */
-  onWriteOperationCompleted?: (details: {
-    resourceType: string;
-    amount?: string | number;
-    totalBalance?: string | number;
-  }) => void;
 }
 
 /**
- * AppClipPage component - Exact replica of AppClipMockPage from passage-infra
+ * AppClipPage component - Displays App Clip UI for connecting accounts
  *
- * This component provides the same UI and functionality as the AppClipMockPage
- * with device detection, QR code display, SMS functionality, and write operation checking.
+ * This component provides device detection, QR code display, and SMS functionality.
  */
 export const AppClipPage: React.FC<AppClipPageProps> = ({
   shortCode: propShortCode,
   baseUrl = 'https://app.getpassage.com',
   logoUrl,
   integrationName: propIntegrationName,
-  onIntentTokenResolved,
-  onWriteOperationCompleted
+  onIntentTokenResolved
 }) => {
   // Device detection states
   const [isAndroid, setIsAndroid] = useState(false);
   const [isIosMobile, setIsIosMobile] = useState(false);
   const [forceDesktopView, setForceDesktopView] = useState(false);
 
-  // Write operation states
-  const [writeOperationAlreadyCompleted, setWriteOperationAlreadyCompleted] = useState(false);
-  const [isCheckingWriteOperation, setIsCheckingWriteOperation] = useState(false);
-  const [integrationNameForError, setIntegrationNameForError] = useState<string>('');
 
   // QR code state
   const [qrCodeSize, setQrCodeSize] = useState(() => {
@@ -73,12 +61,6 @@ export const AppClipPage: React.FC<AppClipPageProps> = ({
     error: shortCodeError
   } = useShortCode(shortCode);
 
-  const {
-    payload,
-    hasWrites,
-    checkWriteCompleted,
-    isLoading: isCheckingWrite
-  } = useIntentToken(intentToken);
 
   // Build QR code URL
   const qrCodeUrl = shortCode
@@ -103,6 +85,32 @@ export const AppClipPage: React.FC<AppClipPageProps> = ({
     setIsIosMobile(forceIos || (isIosDevice && isMobileDevice));
   }, []);
 
+  // Set default light theme on mount
+  useEffect(() => {
+    document.documentElement.style.setProperty('--color-background', '#ffffff');
+    document.documentElement.style.setProperty('--color-card-background', '#f5f5f5');
+  }, []);
+
+  // Apply branding when config loads
+  useEffect(() => {
+    if (config) {
+      const brandingConfig: BrandingConfig = {
+        integrationName: config.integrationName || '',
+        colorPrimary: config.colorPrimary,
+        colorBackground: config.colorBackground,
+        colorCardBackground: config.colorCardBackground,
+        colorText: config.colorText,
+        colorTextSecondary: config.colorTextSecondary,
+        logoUrl: config.logoUrl
+      };
+      applyBranding(brandingConfig);
+    }
+
+    return () => {
+      resetBranding();
+    };
+  }, [config]);
+
   // Update QR code size on window resize
   useEffect(() => {
     const updateQrCodeSize = () => {
@@ -122,39 +130,6 @@ export const AppClipPage: React.FC<AppClipPageProps> = ({
     return () => window.removeEventListener('resize', updateQrCodeSize);
   }, []);
 
-  // Check for write operations when intent token is resolved
-  useEffect(() => {
-    const checkWriteOperations = async () => {
-      if (intentToken && payload && hasWrites) {
-        setIsCheckingWriteOperation(true);
-        logger.info('[AppClipPage] Checking for completed write operations');
-
-        try {
-          const result = await checkWriteCompleted();
-
-          if (result.completed && result.resourceType) {
-            logger.info('[AppClipPage] Write operation already completed:', result);
-            setWriteOperationAlreadyCompleted(true);
-            setIntegrationNameForError(config?.integrationName || propIntegrationName || 'account');
-
-            if (onWriteOperationCompleted) {
-              onWriteOperationCompleted({
-                resourceType: result.resourceType,
-                amount: result.amount,
-                totalBalance: result.totalBalance
-              });
-            }
-          }
-        } catch (error) {
-          logger.error('[AppClipPage] Error checking write operation:', error);
-        } finally {
-          setIsCheckingWriteOperation(false);
-        }
-      }
-    };
-
-    checkWriteOperations();
-  }, [intentToken, payload, hasWrites, config, propIntegrationName]);
 
   // Notify when intent token is resolved
   useEffect(() => {
@@ -165,7 +140,7 @@ export const AppClipPage: React.FC<AppClipPageProps> = ({
 
   // Determine which view to show
   const showDesktopView = !isAndroid || forceDesktopView;
-  const integrationName = integrationNameForError || config?.integrationName || propIntegrationName || 'account';
+  const integrationName = config?.integrationName || propIntegrationName || 'account';
   const isLoadingConfig = isResolvingShortCode && !!shortCode;
 
   if (!showDesktopView) {
@@ -177,9 +152,6 @@ export const AppClipPage: React.FC<AppClipPageProps> = ({
   return (
     <DesktopView
       isLoading={isLoadingConfig}
-      isCheckingWriteOperation={isCheckingWriteOperation}
-      writeOperationAlreadyCompleted={writeOperationAlreadyCompleted}
-      config={config}
       integrationName={integrationName}
       qrCodeUrl={qrCodeUrl}
       qrCodeSize={qrCodeSize}

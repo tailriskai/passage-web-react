@@ -5,18 +5,19 @@ import App from "./App";
 import "./index.css";
 import {
   DEFAULT_API_BASE_URL,
-  DEFAULT_WEB_BASE_URL,
+  DEFAULT_UI_BASE_URL,
 } from "@getpassage/react-js";
 
-// Allow overriding URLs via query string, e.g. ?webUrl=http://localhost:3001&apiUrl=http://localhost:3000&socketUrl=http://localhost:3000
+// Allow overriding URLs via query string, e.g. ?uiUrl=http://localhost:3001&apiUrl=http://localhost:3000&socketUrl=http://localhost:3000
 const searchParams = new URLSearchParams(window.location.search);
-const webUrlFromQuery = searchParams.get("webUrl");
+const uiUrlFromQuery = searchParams.get("uiUrl") || searchParams.get("webUrl"); // Support both old and new param names
 const apiUrlFromQuery = searchParams.get("apiUrl");
 const socketUrlFromQuery = searchParams.get("socketUrl");
 
 const providerConfig = {
+  publishableKey: "pk-live-0d017c4c-307e-441c-8b72-cb60f64f77f8", // Default publishable key
   debug: true,
-  webUrl: webUrlFromQuery ?? DEFAULT_WEB_BASE_URL,
+  uiUrl: uiUrlFromQuery ?? DEFAULT_UI_BASE_URL,
   apiUrl: apiUrlFromQuery ?? DEFAULT_API_BASE_URL,
   socketUrl: socketUrlFromQuery ?? DEFAULT_API_BASE_URL,
 };

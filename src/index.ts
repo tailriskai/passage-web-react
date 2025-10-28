@@ -1,5 +1,5 @@
 // Core Functions
-export * from "./core/passage";
+export { configure, open, close, generateAppClip, openAppClip, getConfig } from "./core/passage";
 export * from "./core/shortcode";
 export * from "./core/intentTokenLink";
 
@@ -7,6 +7,9 @@ export * from "./core/intentTokenLink";
 export { PassageProvider } from "./Provider";
 export { QRCode } from "./components/QRCode";
 export type { QRCodeProps } from "./components/QRCode";
+export { AppClipModal } from "./components/AppClipModal";
+export type { AppClipModalProps } from "./components/AppClipModal";
+// Keep AppClipPage for backward compatibility
 export { AppClipPage } from "./components/AppClipPage";
 export type { AppClipPageProps } from "./components/AppClipPage";
 
@@ -19,14 +22,16 @@ export { usePassageEvents, dispatchPassageEvent } from "./hooks/usePassageEvents
 // Intent Token Utilities
 export * from "./utils/intentToken";
 
-// WebSocket Manager - for backward compatibility
+// WebSocket Manager
 export { WebSocketManager } from "./websocket-manager";
 
 // Types
 export type {
   PassageConfig,
-  PassageInitializeOptions,
   PassageOpenOptions,
+  GenerateAppClipOptions,
+  GenerateAppClipResponse,
+  OpenAppClipOptions,
   PassagePrompt,
   PassagePromptResponse,
   PassageDataResult,
@@ -43,7 +48,7 @@ export type {
 
 // Configuration constants
 export {
-  DEFAULT_WEB_BASE_URL,
+  DEFAULT_UI_BASE_URL,
   DEFAULT_API_BASE_URL,
   DEFAULT_SOCKET_URL,
   DEFAULT_SOCKET_NAMESPACE,

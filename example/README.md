@@ -7,7 +7,7 @@ This directory contains interactive examples demonstrating how to use the Passag
 ### Prerequisites
 
 - Node.js 16+
-- npm, yarn, or pnpm
+- npm or yarn
 
 ### Installation & Setup
 
@@ -23,8 +23,6 @@ This directory contains interactive examples demonstrating how to use the Passag
    npm install
    # or
    yarn install
-   # or
-   pnpm install
    ```
 
 3. **Start the development server:**
@@ -33,8 +31,6 @@ This directory contains interactive examples demonstrating how to use the Passag
    npm run dev
    # or
    yarn dev
-   # or
-   pnpm dev
    ```
 
 4. **Open your browser:**

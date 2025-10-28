@@ -1,94 +1,45 @@
 /**
- * Core Passage functions that mirror the native module API
- * These are pure functions that can be used directly or through hooks
+ * Core Passage functions for web React SDK
+ * These are the main entry points for using Passage
  */
 
 import { logger } from '../logger';
 import {
   PassageConfig,
-  PassageInitializeOptions,
   PassageOpenOptions,
-  PassageSuccessData,
-  PassageErrorData,
-  PassageDataResult,
-  PassagePromptResponse
+  GenerateAppClipOptions,
+  GenerateAppClipResponse,
+  OpenAppClipOptions,
+  BrandingConfig,
 } from '../types';
+import { DEFAULT_API_BASE_URL, INTENT_TOKEN_PATH } from '../config';
 
-// Global configuration state (managed by provider)
-let globalConfig: PassageConfig = {};
-let isInitialized = false;
-let currentSessionId: string | null = null;
-let publishableKey: string | null = null;
+// Global configuration state
+let globalConfig: PassageConfig | null = null;
 
 /**
  * Configure the Passage SDK with global settings
- * Similar to native module's configure method
  */
 export function configure(config: PassageConfig): void {
-  globalConfig = { ...globalConfig, ...config };
+  globalConfig = { ...config };
 
+  logger.setDebugMode(config.debug ?? false);
   logger.debug('[Passage] Configured with:', {
-    webUrl: config.webUrl,
+    uiUrl: config.uiUrl,
     apiUrl: config.apiUrl,
     socketUrl: config.socketUrl,
-    debug: config.debug
+    debug: config.debug,
+    hasPublishableKey: !!config.publishableKey
   });
 }
 
 /**
- * Initialize the Passage SDK with publishable key
- * Returns a promise that resolves when initialization is complete
+ * Open the Passage connection flow
+ * This opens the modal/embed with the provided intent token
  */
-export async function initialize(options: PassageInitializeOptions): Promise<boolean> {
-  try {
-    publishableKey = options.publishableKey;
+export function open(options: PassageOpenOptions): void {
+  logger.info('[Passage] Opening with token');
 
-    // Store initialization options for later use
-    if (options.integrationId) {
-      globalConfig.integrationId = options.integrationId;
-    }
-
-    logger.info('[Passage] Initializing with publishable key');
-
-    // Perform any initialization logic here
-    // This might include validating the key, setting up connections, etc.
-
-    isInitialized = true;
-
-    // Call initialization callbacks if provided
-    if (options.onConnectionComplete) {
-      // Store callback for later use
-      globalConfig.onConnectionComplete = options.onConnectionComplete;
-    }
-
-    return true;
-  } catch (error) {
-    logger.error('[Passage] Initialization failed:', error);
-
-    if (options.onError) {
-      options.onError({
-        error: 'Initialization failed',
-        data: error
-      });
-    }
-
-    throw error;
-  }
-}
-
-/**
- * Open the Passage flow (modal or embedded)
- * This is the main entry point for user interaction
- */
-export function open(options?: PassageOpenOptions): void {
-  if (!isInitialized) {
-    throw new Error('Passage must be initialized before opening');
-  }
-
-  logger.info('[Passage] Opening with options:', options);
-
-  // This will be implemented by the provider/modal component
-  // Dispatch an event or update state to trigger the UI
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('passage:open', { detail: options }));
   }
@@ -106,139 +57,255 @@ export function close(): void {
 }
 
 /**
- * Navigate to a specific URL within the Passage flow
+ * Generate an app clip intent token by calling the backend API
+ * This method calls POST /intent-token endpoint
  */
-export function navigate(url: string): void {
-  logger.info('[Passage] Navigating to:', url);
-
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('passage:navigate', { detail: url }));
+export async function generateAppClip(options: GenerateAppClipOptions): Promise<GenerateAppClipResponse> {
+  if (!globalConfig) {
+    throw new Error('Passage must be configured before calling generateAppClip. Call configure() first.');
   }
-}
 
-/**
- * Complete recording with optional data
- */
-export async function completeRecording(data?: Record<string, any>): Promise<boolean> {
-  try {
-    logger.info('[Passage] Completing recording with data:', data);
-
-    // Implementation will depend on the backend API
-    // This might send data to the server and finalize the session
-
-    return true;
-  } catch (error) {
-    logger.error('[Passage] Failed to complete recording:', error);
-    throw error;
+  if (!globalConfig.publishableKey) {
+    throw new Error('publishableKey is required in PassageConfig to generate app clip tokens.');
   }
-}
 
-/**
- * Capture recording data without completing the session
- */
-export async function captureRecordingData(data?: Record<string, any>): Promise<boolean> {
+  const apiUrl = globalConfig.apiUrl || DEFAULT_API_BASE_URL;
+  const endpoint = `${apiUrl}${INTENT_TOKEN_PATH}`;
+
+  logger.debug('[Passage] Generating app clip intent token', {
+    endpoint,
+    apiUrl,
+    integrationId: options.integrationId,
+    hasResources: !!options.resources,
+    hasReturnUrl: !!options.returnUrl
+  });
+
   try {
-    logger.info('[Passage] Capturing recording data:', data);
-
-    // Store data for later submission
-
-    return true;
-  } catch (error) {
-    logger.error('[Passage] Failed to capture recording data:', error);
-    throw error;
-  }
-}
-
-/**
- * Clear all web view data (localStorage, sessionStorage, cookies)
- */
-export async function clearWebViewData(): Promise<void> {
-  try {
-    // Clear localStorage
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.clear();
-    }
-
-    // Clear sessionStorage
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      window.sessionStorage.clear();
-    }
-
-    // Clear cookies (limited in browser environment)
-    document.cookie.split(';').forEach((c) => {
-      document.cookie = c
-        .replace(/^ +/, '')
-        .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Publishable ${globalConfig.publishableKey}`
+      },
+      body: JSON.stringify({
+        integrationId: options.integrationId,
+        resources: options.resources,
+        returnUrl: options.returnUrl,
+        userId: options.userId,
+        prompts: options.prompts,
+        sessionArgs: options.sessionArgs,
+        record: options.record,
+        debug: options.debug,
+        clearAllCookies: options.clearAllCookies,
+        interactive: options.interactive,
+        adCampaign: options.adCampaign
+      })
     });
 
-    logger.info('[Passage] Cleared web view data');
+    if (!response.ok) {
+      let errorMessage = `Failed to generate app clip: ${response.status} ${response.statusText}`;
+
+      try {
+        const errorData = await response.json();
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        if (errorData.errorCode === 'VALIDATION_001' && errorData.details) {
+          const validationErrors = Object.values(errorData.details)
+            .map((detail: any) => {
+              const resourceName = detail.property || 'Unknown';
+              const constraints = detail.constraints?.custom || detail.constraints?.message || 'Validation failed';
+              return `${resourceName}: ${constraints}`;
+            })
+            .join('; ');
+          errorMessage = `Validation failed: ${validationErrors}`;
+        }
+      } catch (parseError) {
+        logger.warn('[Passage] Could not parse error response:', parseError);
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const data: GenerateAppClipResponse = await response.json();
+
+    logger.debug('[Passage] App clip intent token generated successfully', {
+      connectionId: data.connectionId,
+      shortToken: data.shortToken,
+      hasUrl: !!data.url
+    });
+
+    return data;
   } catch (error) {
-    logger.error('[Passage] Failed to clear web view data:', error);
+    logger.error('[Passage] Failed to generate app clip:', error);
     throw error;
   }
 }
 
 /**
- * Clear web view state (in-memory state)
+ * Fetch branding configuration for a short code
+ * @param shortCode The short code to fetch branding for
+ * @returns Promise with branding config or null if not found
  */
-export function clearWebViewState(): void {
-  currentSessionId = null;
-  logger.info('[Passage] Cleared web view state');
+async function fetchShortCodeBranding(shortCode: string): Promise<BrandingConfig | null> {
+  const apiUrl = globalConfig?.apiUrl || DEFAULT_API_BASE_URL;
+  const endpoint = `${apiUrl}/intent-token-links/short-code/${encodeURIComponent(shortCode)}`;
+
+  logger.info('[Passage] Fetching branding for short code:', shortCode);
+  logger.debug('[Passage] Using endpoint:', endpoint);
+
+  try {
+    logger.debug('[Passage] Making GET request to:', endpoint);
+    const response = await fetch(endpoint);
+    logger.debug('[Passage] Response status:', { status: response.status, statusText: response.statusText });
+
+    if (!response.ok) {
+      logger.warn(`[Passage] ⚠️  No branding configuration found for short code: ${shortCode}, Status: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    logger.info('[Passage] ✓ Branding response received');
+    logger.debug('[Passage] Raw branding data:', data);
+    logger.debug('[Passage] Branding summary:', {
+      integrationName: data.integrationName,
+      hasLogo: !!data.logoUrl,
+      hasColors: !!(data.colorPrimary || data.colorBackground),
+      colorPrimary: data.colorPrimary,
+      colorBackground: data.colorBackground,
+      colorCardBackground: data.colorCardBackground,
+      colorText: data.colorText,
+      colorTextSecondary: data.colorTextSecondary
+    });
+
+    const brandingConfig: BrandingConfig = {
+      integrationName: data.integrationName || 'Account',
+      colorPrimary: data.colorPrimary,
+      colorBackground: data.colorBackground,
+      colorCardBackground: data.colorCardBackground,
+      colorText: data.colorText,
+      colorTextSecondary: data.colorTextSecondary,
+      logoUrl: data.logoUrl
+    };
+
+    logger.info('[Passage] ✓ Branding config created:', brandingConfig);
+    return brandingConfig;
+  } catch (error) {
+    logger.error('[Passage] ✗ Failed to fetch branding:', error);
+    return null;
+  }
 }
 
 /**
- * Release all resources and cleanup
+ * Open app clip modal by first generating the intent token and fetching branding
+ * This is a convenience method that combines generateAppClip + fetching branding + opening the app clip modal
  */
-export function releaseResources(): void {
-  isInitialized = false;
-  publishableKey = null;
-  currentSessionId = null;
-  globalConfig = {};
+export async function openAppClip(options: OpenAppClipOptions): Promise<void> {
+  logger.info('[Passage] ==== Opening app clip - START ====');
+  logger.debug('[Passage] openAppClip called with options:', {
+    integrationId: options.integrationId,
+    hasResources: !!options.resources,
+    hasCallbacks: !!(options.onConnectionComplete || options.onConnectionError)
+  });
 
-  logger.info('[Passage] Released resources');
-}
+  try {
+    // 1. Generate the intent token
+    logger.debug('[Passage] STEP 1: Generating intent token...');
+    const appClipData = await generateAppClip(options);
+    logger.info('[Passage] ✓ Intent token generated:', {
+      connectionId: appClipData.connectionId,
+      shortToken: appClipData.shortToken,
+      hasUrl: !!appClipData.url,
+      hasBrandingInResponse: !!appClipData.branding
+    });
 
-/**
- * Open an external URL in a new tab/window
- */
-export function openExternalURL(url: string): void {
-  if (typeof window !== 'undefined') {
-    window.open(url, '_blank', 'noopener,noreferrer');
-    logger.info('[Passage] Opened external URL:', url);
+    // 2. Extract or fetch branding configuration
+    let branding: BrandingConfig | null = null;
+
+    logger.debug('[Passage] STEP 2: Fetching branding configuration...');
+
+    // Check if branding is included in the app clip response (new API)
+    if (appClipData.branding) {
+      logger.info('[Passage] ✓ Branding found in intent token response');
+      branding = appClipData.branding;
+      logger.debug('[Passage] Branding details from response:', {
+        integrationName: branding.integrationName,
+        colorPrimary: branding.colorPrimary,
+        colorBackground: branding.colorBackground,
+        colorCardBackground: branding.colorCardBackground,
+        colorText: branding.colorText,
+        colorTextSecondary: branding.colorTextSecondary,
+        logoUrl: branding.logoUrl
+      });
+    } else {
+      // Fall back to fetching branding using short code (for backward compatibility)
+      logger.info('[Passage] ⚠️  No branding in response, fetching via short code (legacy)');
+      logger.debug('[Passage] Fetching branding for short code:', appClipData.shortToken);
+      branding = await fetchShortCodeBranding(appClipData.shortToken);
+
+      if (branding) {
+        logger.info('[Passage] ✓ Branding fetched successfully via short code');
+        logger.debug('[Passage] Branding details from short code:', {
+          integrationName: branding.integrationName,
+          colorPrimary: branding.colorPrimary,
+          colorBackground: branding.colorBackground,
+          colorCardBackground: branding.colorCardBackground,
+          colorText: branding.colorText,
+          colorTextSecondary: branding.colorTextSecondary,
+          logoUrl: branding.logoUrl
+        });
+      } else {
+        logger.warn('[Passage] ⚠️  No branding found for short code:', appClipData.shortToken);
+      }
+    }
+
+    // 3. Dispatch event to open the app clip modal with all data
+    logger.debug('[Passage] STEP 3: Dispatching passage:openAppClip event...');
+    if (typeof window !== 'undefined') {
+      const eventDetail = {
+        appClipData,
+        branding,
+        callbacks: {
+          onConnectionComplete: options.onConnectionComplete,
+          onConnectionError: options.onConnectionError,
+          onDataComplete: options.onDataComplete,
+          onExit: options.onExit
+        }
+      };
+
+      logger.debug('[Passage] Event detail:', {
+        hasAppClipData: !!eventDetail.appClipData,
+        hasBranding: !!eventDetail.branding,
+        brandingIntegrationName: eventDetail.branding?.integrationName,
+        hasCallbacks: !!(eventDetail.callbacks.onConnectionComplete || eventDetail.callbacks.onConnectionError)
+      });
+
+      window.dispatchEvent(new CustomEvent('passage:openAppClip', {
+        detail: eventDetail
+      }));
+
+      logger.info('[Passage] ✓ Event dispatched successfully');
+    } else {
+      logger.error('[Passage] ✗ Window object not available');
+    }
+
+    logger.info('[Passage] ==== App clip modal opened - END ====');
+  } catch (error) {
+    logger.error('[Passage] ✗✗✗ Failed to open app clip ✗✗✗', error);
+    throw error;
   }
 }
 
 /**
  * Get current configuration
  */
-export function getConfig(): PassageConfig {
-  return { ...globalConfig };
+export function getConfig(): PassageConfig | null {
+  return globalConfig ? { ...globalConfig } : null;
 }
 
 /**
- * Check if SDK is initialized
+ * Get the publishable key from the current configuration
  */
-export function getIsInitialized(): boolean {
-  return isInitialized;
-}
-
-/**
- * Get current publishable key
- */
-export function getPublishableKey(): string | null {
-  return publishableKey;
-}
-
-/**
- * Get current session ID
- */
-export function getSessionId(): string | null {
-  return currentSessionId;
-}
-
-/**
- * Set current session ID (used internally)
- */
-export function setSessionId(sessionId: string | null): void {
-  currentSessionId = sessionId;
+export function getPublishableKey(): string | undefined {
+  return globalConfig?.publishableKey;
 }

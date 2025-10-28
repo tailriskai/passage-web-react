@@ -14,10 +14,16 @@ export type ConnectionStatus =
 
 export interface PassageConfig {
   /**
-   * Web URL for the Passage web app UI
+   * Publishable key for API authentication
+   * Required for making API calls to generate intent tokens
+   */
+  publishableKey: string;
+
+  /**
+   * UI URL for the Passage web app interface
    * @default "https://ui.getpassage.ai"
    */
-  webUrl?: string;
+  uiUrl?: string;
 
   /**
    * API URL for backend API calls
@@ -47,21 +53,6 @@ export interface PassageConfig {
    * Custom styles for the modal
    */
   customStyles?: PassageModalStyles;
-
-  /**
-   * Integration ID for the connection
-   */
-  integrationId?: string;
-
-  /**
-   * Connection complete callback
-   */
-  onConnectionComplete?: (data: PassageSuccessData) => void;
-
-  /**
-   * Allow additional properties for extensibility
-   */
-  [key: string]: any;
 }
 
 export interface PassageModalStyles {
@@ -87,68 +78,11 @@ export interface PassagePromptResponse {
   response?: any;
 }
 
-export interface PassageInitializeOptions {
-  /**
-   * Publishable key for authentication
-   */
-  publishableKey: string;
-
-  /**
-   * Integration ID for the connection
-   */
-  integrationId?: string;
-
-  /**
-   * Prompts to process after connection
-   */
-  prompts?: PassagePrompt[];
-
-  /**
-   * Products to process after connection
-   */
-  products?: string[];
-
-  /**
-   * Session arguments for the connection
-   */
-  sessionArgs?: any;
-
-  /**
-   * Enable recording mode for the session
-   */
-  record?: boolean;
-
-  /**
-   * Resources for the connection
-   */
-  resources?: {
-    [key: string]: {
-      [key in "read" | "write"]?: {
-        [key: string]: any;
-      };
-    };
-  };
-
-  /**
-   * Callbacks
-   */
-  onConnectionComplete?: (data: PassageSuccessData) => void;
-  onError?: (error: PassageErrorData) => void;
-  onDataComplete?: (data: PassageDataResult) => void;
-  onPromptComplete?: (prompt: PassagePromptResponse) => void;
-  onExit?: (reason?: string) => void;
-}
-
 export interface PassageOpenOptions {
   /**
-   * The intent token for authentication (optional - will use provider state if not provided)
+   * The intent token for authentication (required)
    */
-  intentToken?: string;
-
-  /**
-   * Optional prompts to process after connection
-   */
-  prompts?: PassagePrompt[];
+  token: string;
 
   /**
    * Called when the connection is successfully established
@@ -158,17 +92,12 @@ export interface PassageOpenOptions {
   /**
    * Called when there's an error during connection
    */
-  onError?: (error: PassageErrorData) => void;
+  onConnectionError?: (error: PassageErrorData) => void;
 
   /**
    * Called when data is complete
    */
   onDataComplete?: (data: PassageDataResult) => void;
-
-  /**
-   * Called when a prompt is successfully processed
-   */
-  onPromptComplete?: (prompt: PassagePromptResponse) => void;
 
   /**
    * Called when the user manually closes the modal before connection
@@ -185,6 +114,186 @@ export interface PassageOpenOptions {
    * Container element for embed mode
    */
   container?: string | HTMLElement;
+}
+
+export interface GenerateAppClipOptions {
+  /**
+   * Integration ID for the connection (e.g., "airbnb", "kroger")
+   */
+  integrationId: string;
+
+  /**
+   * Resources to request access to
+   */
+  resources?: {
+    [key: string]: {
+      [key in "read" | "write"]?: {
+        [key: string]: any;
+      };
+    };
+  };
+
+  /**
+   * Return URL after connection completes
+   */
+  returnUrl?: string;
+
+  /**
+   * User ID to associate with this connection
+   */
+  userId?: string;
+
+  /**
+   * Prompts to process after connection
+   */
+  prompts?: PassagePrompt[];
+
+  /**
+   * Session arguments for the connection
+   */
+  sessionArgs?: any;
+
+  /**
+   * Enable recording mode for the session
+   */
+  record?: boolean;
+
+  /**
+   * Enable debug mode
+   */
+  debug?: boolean;
+
+  /**
+   * Clear all cookies before connection
+   */
+  clearAllCookies?: boolean;
+
+  /**
+   * Enable interactive mode
+   */
+  interactive?: boolean;
+
+  /**
+   * Ad campaign tracking information
+   */
+  adCampaign?: string;
+}
+
+export interface GenerateAppClipResponse {
+  /**
+   * The generated intent token (JWT)
+   */
+  intentToken: string;
+
+  /**
+   * The connection ID (same as sessionId in JWT)
+   */
+  connectionId: string;
+
+  /**
+   * The universal link URL for the app clip
+   */
+  url: string;
+
+  /**
+   * The app clip URL with developer slug and shortCode
+   * Format: https://clip.trypassage.ai/{developer-name}?shortCode={shortToken}
+   */
+  appClipUrl: string;
+
+  /**
+   * The short token code
+   */
+  shortToken: string;
+
+  /**
+   * Debug mode flag
+   */
+  debug: boolean;
+
+  /**
+   * Recording mode flag
+   */
+  record: boolean;
+
+  /**
+   * Clear all cookies flag
+   */
+  clearAllCookies: boolean;
+
+  /**
+   * Interactive mode flag
+   */
+  interactive?: boolean;
+
+  /**
+   * Return URL with connection ID appended
+   */
+  returnUrl?: string;
+
+  /**
+   * Branding configuration for the integration
+   */
+  branding?: BrandingConfig;
+}
+
+export interface BrandingConfig {
+  /**
+   * Integration name for display
+   */
+  integrationName: string;
+
+  /**
+   * Primary brand color (buttons, accents)
+   */
+  colorPrimary?: string;
+
+  /**
+   * Background color for the page
+   */
+  colorBackground?: string;
+
+  /**
+   * Background color for cards/modals
+   */
+  colorCardBackground?: string;
+
+  /**
+   * Primary text color
+   */
+  colorText?: string;
+
+  /**
+   * Secondary/muted text color
+   */
+  colorTextSecondary?: string;
+
+  /**
+   * Logo URL for the integration
+   */
+  logoUrl?: string;
+}
+
+export interface OpenAppClipOptions extends GenerateAppClipOptions {
+  /**
+   * Called when the connection is successfully established
+   */
+  onConnectionComplete?: (data: PassageSuccessData) => void;
+
+  /**
+   * Called when there's an error during connection
+   */
+  onConnectionError?: (error: PassageErrorData) => void;
+
+  /**
+   * Called when data is complete
+   */
+  onDataComplete?: (data: PassageDataResult) => void;
+
+  /**
+   * Called when the user manually closes the modal
+   */
+  onExit?: (reason?: string) => void;
 }
 
 export interface PassageDataResult {
@@ -284,13 +393,10 @@ export interface PassageDataOptions {
 }
 
 export interface PassageContextValue {
-  initialize: (options: PassageInitializeOptions) => Promise<void>;
-  open: (options?: PassageOpenOptions) => Promise<void>;
-  close: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  getData: () => Promise<PassageStoredDataResult[]>;
-  fetchResource: (resourceNames: string[]) => Promise<any>;
-  intentToken: string | null;
+  open: (options: PassageOpenOptions) => Promise<void>;
+  close: () => void;
+  generateAppClip: (options: GenerateAppClipOptions) => Promise<GenerateAppClipResponse>;
+  openAppClip: (options: OpenAppClipOptions) => Promise<void>;
 }
 
 export interface StatusUpdateMessage {

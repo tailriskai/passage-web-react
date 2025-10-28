@@ -83,7 +83,7 @@ export async function createIntentTokenLink(
   publishableKey?: string
 ): Promise<CreateIntentTokenLinkResponse> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
   const { getPublishableKey } = await import('./passage');
   const key = publishableKey || getPublishableKey();
 
@@ -139,7 +139,7 @@ export async function getIntentTokenLinks(
   limit: number = 10
 ): Promise<IntentTokenLink[]> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     logger.info('[IntentTokenLink] Fetching intent token links');
@@ -179,7 +179,7 @@ export async function getIntentTokenLinks(
  */
 export async function getIntentTokenLink(linkId: string): Promise<IntentTokenLink> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     logger.info('[IntentTokenLink] Fetching intent token link:', linkId);
@@ -217,7 +217,7 @@ export async function updateIntentTokenLink(
   data: Partial<IntentTokenLink>
 ): Promise<IntentTokenLink> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     logger.info('[IntentTokenLink] Updating intent token link:', linkId);
@@ -251,7 +251,7 @@ export async function updateIntentTokenLink(
  */
 export async function deactivateIntentTokenLink(linkId: string): Promise<void> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     logger.info('[IntentTokenLink] Deactivating intent token link:', linkId);
@@ -280,7 +280,7 @@ export async function deactivateIntentTokenLink(linkId: string): Promise<void> {
  */
 export async function activateIntentTokenLink(linkId: string): Promise<void> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     logger.info('[IntentTokenLink] Activating intent token link:', linkId);
@@ -309,7 +309,7 @@ export async function activateIntentTokenLink(linkId: string): Promise<void> {
  */
 export async function deleteIntentTokenLink(linkId: string): Promise<void> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     logger.info('[IntentTokenLink] Deleting intent token link:', linkId);
@@ -339,7 +339,7 @@ export async function deleteIntentTokenLink(linkId: string): Promise<void> {
  */
 export async function getIntentTokenLinkConnections(shortCode: string): Promise<any> {
   const config = getConfig();
-  const apiUrl = config.apiUrl || 'https://api.getpassage.ai';
+  const apiUrl = config?.apiUrl || 'https://api.getpassage.ai';
 
   try {
     logger.info('[IntentTokenLink] Fetching connections for shortcode:', shortCode);
