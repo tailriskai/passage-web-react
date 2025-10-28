@@ -1,6 +1,6 @@
 {
   "name": "@getpassage/react-js",
-  "version": "0.0.21",
+  "version": "0.1.0",
   "description": "Passage SDK for React JS applications",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
