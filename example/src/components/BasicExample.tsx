@@ -63,6 +63,7 @@ const BasicExample: React.FC = () => {
   const [promptResults, setPromptResults] = useState<PassagePromptResponse[]>(
     []
   );
+  const [returnUrl, setReturnUrl] = useState<string>("");
 
   // Function to get available resources for the selected integration
   const getAvailableResources = (integrationSlug: string) => {
@@ -474,11 +475,15 @@ const BasicExample: React.FC = () => {
 
       console.log("Resources data being passed:", resourcesData);
 
+      // Validate returnUrl if provided (must not be empty string)
+      const validReturnUrl = returnUrl.trim() !== "" ? returnUrl.trim() : undefined;
+
       // Use openAppClip for one-step process
       await passage.openAppClip({
         integrationId: integrationId || undefined,
         prompts: promptsToSend.length > 0 ? promptsToSend : undefined,
         record: recordMode,
+        returnUrl: validReturnUrl,
         resources:
           Object.keys(resourcesData).length > 0 ? resourcesData : undefined,
         onConnectionComplete: async (data: PassageSuccessData) => {
@@ -776,6 +781,42 @@ const BasicExample: React.FC = () => {
             }}
           >
             Enable recording mode for session replay and debugging
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label
+            htmlFor="return-url-input"
+            style={{
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+              display: "block",
+            }}
+          >
+            Return URL (optional):
+          </label>
+          <input
+            id="return-url-input"
+            type="text"
+            value={returnUrl}
+            onChange={(e) => setReturnUrl(e.target.value)}
+            placeholder="https://example.com/callback"
+            style={{
+              width: "100%",
+              padding: "0.75rem",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              fontSize: "1rem",
+            }}
+          />
+          <div
+            style={{
+              fontSize: "0.875rem",
+              color: "#6b7280",
+              marginTop: "0.25rem",
+            }}
+          >
+            URL to redirect to after connection completes
           </div>
         </div>
 
