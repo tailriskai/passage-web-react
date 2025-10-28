@@ -487,6 +487,11 @@ const BasicExample: React.FC = () => {
         resources:
           Object.keys(resourcesData).length > 0 ? resourcesData : undefined,
         onConnectionComplete: async (data: PassageSuccessData) => {
+          console.log("🎉 [onConnectionComplete] Callback triggered!", data);
+          addLog(
+            `🎉 [onConnectionComplete] Callback triggered!`,
+            "success"
+          );
           addLog(
             `✅ Connection complete! Connection ID: ${data.connectionId}`,
             "success"
@@ -505,7 +510,9 @@ const BasicExample: React.FC = () => {
           ]);
         },
         onConnectionError: (error: PassageErrorData) => {
-          addLog(`❌ Error: ${error.error} (Code: ${error.code})`, "error");
+          console.error("❌ [onConnectionError] Callback triggered!", error);
+          addLog(`❌ [onConnectionError] Callback triggered!`, "error");
+          addLog(`Error: ${error.error} (Code: ${error.code})`, "error");
           setConnectionResults((prev) => [
             ...prev,
             {
@@ -516,8 +523,13 @@ const BasicExample: React.FC = () => {
           ]);
         },
         onDataComplete: (data) => {
+          console.log("📊 [onDataComplete] Callback triggered!", data);
           addLog(
-            `📊 Data processing complete: ${JSON.stringify(data, null, 2)}`,
+            `📊 [onDataComplete] Callback triggered!`,
+            "success"
+          );
+          addLog(
+            `Data processing complete: ${JSON.stringify(data, null, 2)}`,
             "success"
           );
           setConnectionResults((prev) => [

@@ -282,6 +282,12 @@ export class WebSocketManager {
       this.notifyMessageListeners("done", data);
     });
 
+    // Handle command event (for automation commands like 'done')
+    this.socket.on("command", (data: any) => {
+      logger.debug("[WebSocketManager] Received 'command' event:", data);
+      this.notifyMessageListeners("command", data);
+    });
+
     // Log all events for debugging
     if (logger["enabled"]) {
       this.socket.onAny((eventName, ...args) => {

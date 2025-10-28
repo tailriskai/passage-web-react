@@ -143,60 +143,6 @@ export async function generateAppClip(options: GenerateAppClipOptions): Promise<
 }
 
 /**
- * Fetch branding configuration for a short code
- * @param shortCode The short code to fetch branding for
- * @returns Promise with branding config or null if not found
- */
-async function fetchShortCodeBranding(shortCode: string): Promise<BrandingConfig | null> {
-  const apiUrl = globalConfig?.apiUrl || DEFAULT_API_BASE_URL;
-  const endpoint = `${apiUrl}/intent-token-links/short-code/${encodeURIComponent(shortCode)}`;
-
-  logger.info('[Passage] Fetching branding for short code:', shortCode);
-  logger.debug('[Passage] Using endpoint:', endpoint);
-
-  try {
-    logger.debug('[Passage] Making GET request to:', endpoint);
-    const response = await fetch(endpoint);
-    logger.debug('[Passage] Response status:', { status: response.status, statusText: response.statusText });
-
-    if (!response.ok) {
-      logger.warn(`[Passage] ⚠️  No branding configuration found for short code: ${shortCode}, Status: ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-    logger.info('[Passage] ✓ Branding response received');
-    logger.debug('[Passage] Raw branding data:', data);
-    logger.debug('[Passage] Branding summary:', {
-      integrationName: data.integrationName,
-      hasLogo: !!data.logoUrl,
-      hasColors: !!(data.colorPrimary || data.colorBackground),
-      colorPrimary: data.colorPrimary,
-      colorBackground: data.colorBackground,
-      colorCardBackground: data.colorCardBackground,
-      colorText: data.colorText,
-      colorTextSecondary: data.colorTextSecondary
-    });
-
-    const brandingConfig: BrandingConfig = {
-      integrationName: data.integrationName || 'Account',
-      colorPrimary: data.colorPrimary,
-      colorBackground: data.colorBackground,
-      colorCardBackground: data.colorCardBackground,
-      colorText: data.colorText,
-      colorTextSecondary: data.colorTextSecondary,
-      logoUrl: data.logoUrl
-    };
-
-    logger.info('[Passage] ✓ Branding config created:', brandingConfig);
-    return brandingConfig;
-  } catch (error) {
-    logger.error('[Passage] ✗ Failed to fetch branding:', error);
-    return null;
-  }
-}
-
-/**
  * Open app clip modal by first generating the intent token and fetching branding
  * This is a convenience method that combines generateAppClip + fetching branding + opening the app clip modal
  */
@@ -219,12 +165,12 @@ export async function openAppClip(options: OpenAppClipOptions): Promise<void> {
       hasBrandingInResponse: !!appClipData.branding
     });
 
-    // 2. Extract or fetch branding configuration
+    // 2. Extract branding configuration from response
     let branding: BrandingConfig | null = null;
 
-    logger.debug('[Passage] STEP 2: Fetching branding configuration...');
+    logger.debug('[Passage] STEP 2: Extracting branding configuration...');
 
-    // Check if branding is included in the app clip response (new API)
+    // Extract branding from the app clip response
     if (appClipData.branding) {
       logger.info('[Passage] ✓ Branding found in intent token response');
       branding = appClipData.branding;
@@ -238,25 +184,7 @@ export async function openAppClip(options: OpenAppClipOptions): Promise<void> {
         logoUrl: branding.logoUrl
       });
     } else {
-      // Fall back to fetching branding using short code (for backward compatibility)
-      logger.info('[Passage] ⚠️  No branding in response, fetching via short code (legacy)');
-      logger.debug('[Passage] Fetching branding for short code:', appClipData.shortToken);
-      branding = await fetchShortCodeBranding(appClipData.shortToken);
-
-      if (branding) {
-        logger.info('[Passage] ✓ Branding fetched successfully via short code');
-        logger.debug('[Passage] Branding details from short code:', {
-          integrationName: branding.integrationName,
-          colorPrimary: branding.colorPrimary,
-          colorBackground: branding.colorBackground,
-          colorCardBackground: branding.colorCardBackground,
-          colorText: branding.colorText,
-          colorTextSecondary: branding.colorTextSecondary,
-          logoUrl: branding.logoUrl
-        });
-      } else {
-        logger.warn('[Passage] ⚠️  No branding found for short code:', appClipData.shortToken);
-      }
+      logger.warn('[Passage] ⚠️  No branding found in intent token response');
     }
 
     // 3. Dispatch event to open the app clip modal with all data

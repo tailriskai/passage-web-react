@@ -135,6 +135,20 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       onDataCompleteRef.current = callbacks.onDataComplete;
       onExitRef.current = callbacks.onExit;
 
+      // Set intent token and connect to websocket
+      const token = appClipData.intentToken;
+      logger.debug('[PassageProvider] Setting intent token from app clip:', token);
+      setIntentToken(token);
+
+      // Connect to websocket
+      const socketUrl = config.socketUrl || DEFAULT_SOCKET_URL;
+      const socketNamespace = config.socketNamespace || DEFAULT_SOCKET_NAMESPACE;
+
+      logger.debug('[PassageProvider] Connecting to websocket:', { socketUrl, socketNamespace });
+      wsManager.connect(token, socketUrl, socketNamespace).catch((error) => {
+        logger.error('[PassageProvider] Failed to connect to websocket:', error);
+      });
+
       // Open app clip modal with branding
       logger.debug('[PassageProvider] Setting state to open app clip modal...');
       setAppClipData(appClipData);
@@ -211,7 +225,48 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
           }
         }
 
-        // Handle done event
+        // Handle command event with type='done'
+        if (eventName === 'command' && data?.type === 'done') {
+          const success = data?.args?.success === true;
+          const resultData = data?.args?.data;
+
+          if (success) {
+            analytics.track(ANALYTICS_EVENTS.SDK_ON_SUCCESS, {
+              status: 'done',
+              success: true,
+            });
+
+            const successData: PassageSuccessData = {
+              connectionId: data?.args?.connectionId || '',
+              status: 'done',
+              metadata: {
+                completedAt: new Date().toISOString(),
+              },
+              data: resultData || [],
+              intentToken: intentToken,
+            };
+
+            onConnectionCompleteRef.current?.(successData);
+          } else {
+            const errorMessage = data?.args?.error || (resultData as any)?.error || 'Operation completed with failure';
+
+            analytics.track(ANALYTICS_EVENTS.SDK_ON_ERROR, {
+              status: 'done',
+              success: false,
+              error: errorMessage,
+            });
+
+            const errorData: PassageErrorData = {
+              error: errorMessage,
+              code: 'COMMAND_DONE_FAILURE',
+              data: resultData,
+            };
+
+            onErrorRef.current?.(errorData);
+          }
+        }
+
+        // Handle legacy done event (backward compatibility)
         if (eventName === 'done') {
           const success = data?.success !== false;
           const resultData = data?.data;
@@ -234,7 +289,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
 
             onConnectionCompleteRef.current?.(successData);
           } else {
-            const errorMessage = (resultData as any)?.error || 'Operation completed with failure';
+            const errorMessage = data?.error || (resultData as any)?.error || 'Operation completed with failure';
 
             analytics.track(ANALYTICS_EVENTS.SDK_ON_ERROR, {
               status: 'done',
