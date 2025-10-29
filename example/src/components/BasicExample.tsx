@@ -597,7 +597,7 @@ const BasicExample: React.FC = () => {
       // Get API URL from query params or use default
       const searchParams = new URLSearchParams(window.location.search);
       const apiUrlFromQuery = searchParams.get("apiUrl");
-      const apiUrl = apiUrlFromQuery || DEFAULT_API_BASE_URL || "https://api.getpassage.ai";
+      const apiUrl = apiUrlFromQuery || DEFAULT_API_BASE_URL || "https://api.runpassage.ai";
 
       // Build resources object based on selected resources
       const requestResources: Record<string, Record<string, unknown>> = {};

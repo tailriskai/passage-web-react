@@ -5,7 +5,7 @@
 // Base URLs
 export const DEFAULT_UI_BASE_URL = "https://ui.runpassage.ai";
 export const DEFAULT_API_BASE_URL = "https://api.runpassage.ai";
-export const DEFAULT_SOCKET_URL = "http://api.runpassage.ai";
+export const DEFAULT_SOCKET_URL = "https://api.runpassage.ai";
 
 // Path constants
 export const CONNECT_PATH = "/connect";

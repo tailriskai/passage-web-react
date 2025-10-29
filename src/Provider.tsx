@@ -55,6 +55,9 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
   const [appClipData, setAppClipData] = useState<GenerateAppClipResponse | null>(null);
   const [appClipBranding, setAppClipBranding] = useState<BrandingConfig | null>(null);
 
+  // Store returnUrl from intent token generation
+  const [returnUrl, setReturnUrl] = useState<string | null>(null);
+
   // Store callbacks in refs
   const onConnectionCompleteRef = useRef<((data: PassageSuccessData) => void) | undefined>(undefined);
   const onErrorRef = useRef<((error: PassageErrorData) => void) | undefined>(undefined);
@@ -135,10 +138,12 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
       onDataCompleteRef.current = callbacks.onDataComplete;
       onExitRef.current = callbacks.onExit;
 
-      // Set intent token and connect to websocket
+      // Set intent token and returnUrl from app clip data
       const token = appClipData.intentToken;
       logger.debug('[PassageProvider] Setting intent token from app clip:', token);
       setIntentToken(token);
+      setReturnUrl(appClipData.returnUrl || null);
+      logger.debug('[PassageProvider] Stored returnUrl from intent token:', appClipData.returnUrl);
 
       // Connect to websocket
       const socketUrl = config.socketUrl || DEFAULT_SOCKET_URL;
@@ -244,6 +249,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               },
               data: resultData || [],
               intentToken: intentToken,
+              returnUrl: returnUrl || undefined,
             };
 
             onConnectionCompleteRef.current?.(successData);
@@ -285,6 +291,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
               },
               data: resultData || [],
               intentToken: intentToken,
+              returnUrl: returnUrl || undefined,
             };
 
             onConnectionCompleteRef.current?.(successData);
@@ -421,6 +428,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     setStatus(null);
     setPresentationStyle('modal');
     setContainer(null);
+    setReturnUrl(null);
 
     logger.debug('[PassageProvider] Modal closed');
   }, [status, presentationStyle]);
@@ -452,6 +460,7 @@ export const PassageProvider: React.FC<PassageProviderProps> = ({
     setIsAppClipOpen(false);
     setAppClipData(null);
     setAppClipBranding(null);
+    setReturnUrl(null);
     onExitRef.current?.('manual_close');
   }, []);
 

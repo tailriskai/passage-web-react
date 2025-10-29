@@ -15,9 +15,9 @@ export type ConnectionStatus =
 export interface PassageConfig {
   /**
    * Publishable key for API authentication
-   * Required for making API calls to generate intent tokens
+   * Optional - only required for app clip flow (generateAppClip/openAppClip)
    */
-  publishableKey: string;
+  publishableKey?: string;
 
   /**
    * UI URL for the Passage web app interface
@@ -340,6 +340,7 @@ export interface PassageSuccessData {
   };
   data?: any;
   intentToken?: string;
+  returnUrl?: string;
   pageData?: {
     cookies?: Array<{
       name: string;
