@@ -271,7 +271,7 @@
   integrity sha512-kTdfRcSiDfQca/y9QIkng02avJ+NCaQvrMejlsB3RRv5sE9rRoeBPISaZpKxHELzRxZyLvNts1P27W3wV+8geQ==
 
 "@getpassage/react-js@file:..":
-  version "0.0.21"
+  version "0.1.1"
   dependencies:
     framer-motion "^11.18.2"
     jwt-decode "^4.0.0"
